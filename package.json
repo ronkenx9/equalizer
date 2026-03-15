@@ -1,0 +1,5 @@
+{
+  "name": "equalizer",
+  "private": true,
+  "workspaces": ["bot"]
+}
