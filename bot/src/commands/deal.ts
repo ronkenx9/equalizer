@@ -23,7 +23,7 @@ export function registerDeal(bot: Bot) {
     const match = parts.match(/(@\S+)\s+([\d.]+)\s+(\S+)\s+"([^"]+)"\s+by\s+(.+)/i);
     if (!match) {
       await ctx.reply(
-        "Format: `/deal @creator amount currency \\"deliverable\\" by deadline`\n\nExample: `/deal @alice 0\\.05 ETH \\"3 tweets about X\\" by March 20`",
+        'Format: `/deal @creator amount currency "deliverable" by deadline`\n\nExample: `/deal @alice 0\\.05 ETH "3 tweets about X" by March 20`',
         { parse_mode: "MarkdownV2" }
       );
       return;

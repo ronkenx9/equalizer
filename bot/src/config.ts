@@ -1,4 +1,10 @@
-import "dotenv/config";
+import dotenv from "dotenv";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+// .env lives at project root (Equalizer/), two levels up from bot/src/
+dotenv.config({ path: resolve(__dirname, "../../.env") });
 
 function required(name: string): string {
   const val = process.env[name];
