@@ -13,7 +13,9 @@ function required(name: string): string {
 }
 
 export const config = {
-  telegramBotToken: required("TELEGRAM_BOT_TOKEN"),
+  telegramBotToken: process.env.TELEGRAM_BOT_TOKEN ?? "",
+  discordBotToken: process.env.DISCORD_BOT_TOKEN ?? "",
+  discordAppId: process.env.DISCORD_APP_ID ?? "",
   claudeApiKey: required("CLAUDE_API_KEY"),
   baseTestnetRpc: process.env.BASE_TESTNET_RPC ?? "https://sepolia.base.org",
   agentPrivateKey: process.env.AGENT_PRIVATE_KEY ?? "",
