@@ -25,9 +25,9 @@ export function Nav() {
           <a href="#reputation" className="hover:text-green-500 transition-colors">Reputation</a>
         </div>
 
-        <button className="border border-amber-500/50 text-amber-500 px-6 py-2 font-mono text-xs uppercase tracking-widest hover:bg-amber-500 hover:text-base transition-all duration-300">
-          Connect
-        </button>
+        <a href="https://t.me/equalizer_agent_bot" target="_blank" rel="noopener noreferrer" className="border border-amber-500/50 text-amber-500 px-6 py-2 font-mono text-xs uppercase tracking-widest hover:bg-amber-500 hover:text-[#0D0D1A] transition-all duration-300">
+          Start a Deal
+        </a>
       </div>
     </nav>
   );

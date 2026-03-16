@@ -97,13 +97,13 @@ export function Reputation() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-24">
           {/* Creators */}
           <div className="space-y-6">
-            <h3 className="font-mono text-sm tracking-widest text-amber-500 uppercase mb-8 border-b border-amber-500/20 pb-4">Creators</h3>
+            <h3 className="font-mono text-sm tracking-widest text-amber-500 uppercase mb-8 border-b border-amber-500/20 pb-4">Freelancers</h3>
             {creators.map((p, i) => <ProfileCard key={i} profile={p} />)}
           </div>
 
           {/* Brands */}
           <div className="space-y-6">
-            <h3 className="font-mono text-sm tracking-widest text-blue-500 uppercase mb-8 border-b border-blue-500/20 pb-4">Brands</h3>
+            <h3 className="font-mono text-sm tracking-widest text-blue-500 uppercase mb-8 border-b border-blue-500/20 pb-4">Clients</h3>
             {brands.map((p, i) => <ProfileCard key={i} profile={p} />)}
           </div>
         </div>

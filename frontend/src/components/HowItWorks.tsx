@@ -80,14 +80,14 @@ const steps = [
   {
     id: '02',
     title: 'LOCK',
-    description: 'Brand sends funds directly to the escrow contract. Agent never touches them.',
+    description: 'Client sends funds directly to the escrow contract. Agent never touches them.',
     icon: <LockIcon />,
     color: 'text-blue-500'
   },
   {
     id: '03',
     title: 'EVALUATE',
-    description: 'Creator submits delivery. Agent reads it against the locked terms. Not quality — specificity.',
+    description: 'Freelancer submits delivery. Agent reads it against the locked terms. Not quality — specificity.',
     icon: <EvaluateIcon />,
     color: 'text-white'
   },
