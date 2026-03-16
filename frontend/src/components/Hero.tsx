@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { Environment, ContactShadows } from '@react-three/drei';
 import { Scales3D } from './Scales3D';
@@ -25,6 +25,7 @@ export function Hero() {
   const textRef = useRef<HTMLDivElement>(null);
   const lineRef = useRef<HTMLDivElement>(null);
   const isMobile = useMobile();
+  const [canvasReady, setCanvasReady] = useState(false);
 
   useEffect(() => {
     const tl = gsap.timeline({
@@ -43,11 +44,15 @@ export function Hero() {
   return (
     <section id="hero-section" className={`relative bg-base ${isMobile ? 'h-[180vh]' : 'h-[250vh]'}`}>
       <div className="sticky top-0 h-screen w-full overflow-hidden">
-        <div className="absolute inset-0 z-0 pointer-events-none">
+        <div
+          className="absolute inset-0 z-0 pointer-events-none transition-opacity duration-700"
+          style={{ opacity: canvasReady ? 1 : 0 }}
+        >
           <Canvas
             camera={{ position: [0, 0, 15], fov: isMobile ? 55 : 45 }}
             dpr={isMobile ? 1 : [1, 2]}
             performance={{ min: 0.5 }}
+            onCreated={() => setCanvasReady(true)}
           >
             <Scales3D mobile={isMobile} />
             <CameraAnimator />
