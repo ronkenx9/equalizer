@@ -15,35 +15,29 @@ export function Problem() {
     const chars = textRef.current.querySelectorAll('.char');
     const highlights = textRef.current.querySelectorAll('.highlight');
 
-    // CSS sticky handles the pin — no GSAP pin:true, avoids insertBefore crash
+    // Play naturally when scrolled into view — not tied to scroll speed
     const tl = gsap.timeline({
       scrollTrigger: {
         trigger: sectionRef.current,
-        start: 'top top',
-        end: 'bottom bottom',
-        scrub: 0.8,
+        start: 'top 65%',
+        toggleActions: 'play none none reverse',
       }
     });
 
-    // 0–40%: characters type in
     tl.fromTo(chars,
       { opacity: 0 },
-      { opacity: 1, stagger: 0.015, duration: 0.4, ease: 'none' },
-      0
-    );
-
-    // 40–70%: danger words flash red
-    tl.to(highlights, {
+      { opacity: 1, stagger: 0.02, duration: 0.1, ease: 'none' }
+    )
+    .to(highlights, {
       color: '#FF6B6B',
-      duration: 0.15,
-      stagger: 0.08,
-    }, 0.4);
-
-    // 70–100%: closing line slides up
-    tl.fromTo(finalLineRef.current,
-      { opacity: 0, y: 30 },
-      { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' },
-      0.68
+      duration: 0.5,
+      stagger: 0.2,
+      ease: 'power2.inOut',
+    })
+    .fromTo(finalLineRef.current,
+      { opacity: 0, y: 20 },
+      { opacity: 1, y: 0, duration: 1, ease: 'power2.out' },
+      '+=0.5'
     );
 
     return () => {
@@ -56,8 +50,8 @@ export function Problem() {
   const wordsToHighlight = ['blocked', 'rugged', 'deleted'];
 
   return (
-    // 300vh tall — inner div is CSS sticky, avoids GSAP pin DOM manipulation
-    <section ref={sectionRef} style={{ height: '300vh' }} className="bg-base relative">
+    // 200vh tall — inner div CSS sticky so user must scroll through before moving on
+    <section ref={sectionRef} style={{ height: '200vh' }} className="bg-base relative">
       <div className="sticky top-0 h-screen flex flex-col items-center justify-center px-4">
         <div className="max-w-3xl w-full">
           <div className="mb-8 font-mono text-sm text-gray-500">@Layi_crypt_</div>

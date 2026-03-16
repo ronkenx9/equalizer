@@ -101,30 +101,32 @@ const steps = [
 ];
 
 export function HowItWorks() {
-  const sectionRef = useRef<HTMLElement>(null);
+  const outerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!sectionRef.current || !containerRef.current || !progressBarRef.current) return;
+    if (!outerRef.current || !containerRef.current || !progressBarRef.current) return;
 
+    // CSS sticky handles the viewport lock — no GSAP pin, avoids insertBefore crash
+    // scrub: 2 gives a smooth lag that feels cinematic
     const tl = gsap.timeline({
       scrollTrigger: {
-        trigger: sectionRef.current,
-        pin: true,
-        scrub: 1,
-        end: () => "+=" + containerRef.current!.offsetWidth,
+        trigger: outerRef.current,
+        start: 'top top',
+        end: 'bottom bottom',
+        scrub: 2,
       }
     });
 
     tl.to(containerRef.current, {
       x: () => -(containerRef.current!.scrollWidth - window.innerWidth),
-      ease: "none"
+      ease: 'none',
     });
 
     tl.to(progressBarRef.current, {
       scaleX: 1,
-      ease: "none"
+      ease: 'none',
     }, 0);
 
     return () => {
@@ -134,36 +136,39 @@ export function HowItWorks() {
   }, []);
 
   return (
-    <section ref={sectionRef} id="how-it-works" className="h-screen bg-base overflow-hidden relative flex flex-col">
-      <div className="absolute top-12 left-12 z-10">
-        <h2 className="font-serif text-4xl text-white">How It Works</h2>
-      </div>
+    // 400vw of content → need 4x viewport height of scroll space
+    <div ref={outerRef} style={{ height: '400vh' }} className="relative bg-base">
+      <div className="sticky top-0 h-screen overflow-hidden flex flex-col" id="how-it-works">
+        <div className="absolute top-12 left-12 z-10">
+          <h2 className="font-serif text-4xl text-white">How It Works</h2>
+        </div>
 
-      <div ref={containerRef} className="flex h-full w-[400vw]">
-        {steps.map((step) => (
-          <div key={step.id} className="step-panel w-screen h-full flex items-center justify-center flex-shrink-0 relative">
-            <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-12 items-center px-12">
-              <div className="h-64 md:h-96 relative pointer-events-none">
-                <Canvas camera={{ position: [0, 0, 5] }}>
-                  <ambientLight intensity={0.5} />
-                  <pointLight position={[10, 10, 10]} />
-                  {step.icon}
-                </Canvas>
-              </div>
-              <div>
-                <div className={`font-mono text-xl mb-4 ${step.color}`}>{step.id} // {step.title}</div>
-                <p className="font-sans text-2xl text-gray-300 leading-relaxed">
-                  {step.description}
-                </p>
+        <div ref={containerRef} className="flex h-full w-[400vw]">
+          {steps.map((step) => (
+            <div key={step.id} className="step-panel w-screen h-full flex items-center justify-center flex-shrink-0">
+              <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-12 items-center px-12">
+                <div className="h-64 md:h-96 pointer-events-none">
+                  <Canvas camera={{ position: [0, 0, 5] }}>
+                    <ambientLight intensity={0.5} />
+                    <pointLight position={[10, 10, 10]} />
+                    {step.icon}
+                  </Canvas>
+                </div>
+                <div>
+                  <div className={`font-mono text-xl mb-4 ${step.color}`}>{step.id} // {step.title}</div>
+                  <p className="font-sans text-2xl text-gray-300 leading-relaxed">
+                    {step.description}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
 
-      <div className="absolute bottom-0 left-0 w-full h-1 bg-gray-800">
-        <div ref={progressBarRef} className="h-full bg-amber-500 origin-left scale-x-0" />
+        <div className="absolute bottom-0 left-0 w-full h-1 bg-gray-800">
+          <div ref={progressBarRef} className="h-full bg-amber-500 origin-left scale-x-0" />
+        </div>
       </div>
-    </section>
+    </div>
   );
 }
