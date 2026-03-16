@@ -6,11 +6,9 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
 
-/** Gold weight cube — slowly rotates, morphs to sphere at balance */
-function Weight({ balanced }: { balanced: boolean }) {
+/** Gold weight cube — slowly rotates, stays a cube always */
+function Weight() {
   const groupRef = useRef<THREE.Group>(null);
-  const cubeRef = useRef<THREE.Mesh>(null);
-  const sphereRef = useRef<THREE.Mesh>(null);
 
   useFrame(() => {
     if (groupRef.current) {
@@ -18,35 +16,19 @@ function Weight({ balanced }: { balanced: boolean }) {
     }
   });
 
-  // Morph: cube fades out, sphere fades in
-  useEffect(() => {
-    if (!cubeRef.current || !sphereRef.current) return;
-    if (balanced) {
-      gsap.to(cubeRef.current.scale, { x: 0, y: 0, z: 0, duration: 0.8, ease: 'power2.inOut' });
-      gsap.to(sphereRef.current.scale, { x: 1, y: 1, z: 1, duration: 0.8, ease: 'power2.inOut', delay: 0.2 });
-    } else {
-      cubeRef.current.scale.set(1, 1, 1);
-      sphereRef.current.scale.set(0, 0, 0);
-    }
-  }, [balanced]);
-
   const mat = { color: '#D4A017', metalness: 0.95, roughness: 0.05 };
 
   return (
     <group ref={groupRef} position={[0, -2.2, 0]}>
-      <mesh ref={cubeRef}>
+      <mesh>
         <boxGeometry args={[1.2, 1.2, 1.2]} />
-        <meshStandardMaterial {...mat} />
-      </mesh>
-      <mesh ref={sphereRef} scale={[0, 0, 0]}>
-        <sphereGeometry args={[0.7, 32, 32]} />
         <meshStandardMaterial {...mat} />
       </mesh>
     </group>
   );
 }
 
-/** Feather — spine + barbs fanning out, gentle oscillation */
+/** Feather — realistic wispy feather laying flat on pan */
 function Feather({ balanced }: { balanced: boolean }) {
   const groupRef = useRef<THREE.Group>(null);
   const frozenRef = useRef(false);
@@ -57,49 +39,88 @@ function Feather({ balanced }: { balanced: boolean }) {
 
   useFrame(({ clock }) => {
     if (groupRef.current && !frozenRef.current) {
-      // Gentle oscillation ±4 degrees, period ~3s
-      groupRef.current.rotation.z = Math.sin(clock.elapsedTime * (2 * Math.PI / 3)) * (4 * Math.PI / 180);
+      groupRef.current.rotation.y = Math.sin(clock.elapsedTime * (2 * Math.PI / 3)) * (3 * Math.PI / 180);
     } else if (groupRef.current && frozenRef.current) {
-      // Lerp to still
-      groupRef.current.rotation.z = THREE.MathUtils.lerp(groupRef.current.rotation.z, 0, 0.05);
+      groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, 0, 0.05);
     }
   });
 
-  const barbMat = { color: '#E8E4D9', metalness: 0.0, roughness: 0.9 };
-  const spineMat = { color: '#D4CFC0', metalness: 0.1, roughness: 0.8 };
-
-  // Build barbs: 6 pairs fanning left/right from spine
+  const barbCount = 24;
   const barbs = [];
-  for (let i = 0; i < 6; i++) {
-    const yPos = -0.5 + i * 0.18;
-    const angle = 0.35 + i * 0.03; // slight fan
-    const scale = 0.6 + (i < 3 ? i * 0.15 : (5 - i) * 0.15); // wider in middle
+
+  for (let i = 0; i < barbCount; i++) {
+    const t = i / (barbCount - 1); // 0 to 1 along spine
+    const spinePos = -1.6 + t * 3.2; // longer spine
+
+    // Feather shape: narrow at base, widest at ~35%, tapers to tip
+    const widthCurve = Math.sin(t * Math.PI) * (t < 0.35 ? t / 0.35 : 1) * (t > 0.85 ? (1 - t) / 0.15 : 1);
+    const barbLength = 0.5 + widthCurve * 1.2;
+    const barbAngle = 0.2 + t * 0.12;
+
+    const opacity = 0.5 + widthCurve * 0.45;
 
     // Left barb
     barbs.push(
-      <mesh key={`l${i}`} position={[-0.15, yPos, 0]} rotation={[0, 0, angle]} scale={[scale, 0.08, 0.02]}>
-        <planeGeometry args={[0.5, 1]} />
-        <meshStandardMaterial {...barbMat} side={THREE.DoubleSide} transparent opacity={0.85} />
+      <mesh key={`l${i}`} position={[-barbLength * 0.35, spinePos, 0]} rotation={[0, 0, barbAngle]}>
+        <planeGeometry args={[barbLength, 0.05]} />
+        <meshStandardMaterial
+          color="#F5F0E8"
+          side={THREE.DoubleSide}
+          transparent
+          opacity={opacity}
+          metalness={0.0}
+          roughness={0.9}
+        />
       </mesh>
     );
     // Right barb
     barbs.push(
-      <mesh key={`r${i}`} position={[0.15, yPos, 0]} rotation={[0, 0, -angle]} scale={[scale, 0.08, 0.02]}>
-        <planeGeometry args={[0.5, 1]} />
-        <meshStandardMaterial {...barbMat} side={THREE.DoubleSide} transparent opacity={0.85} />
+      <mesh key={`r${i}`} position={[barbLength * 0.35, spinePos, 0]} rotation={[0, 0, -barbAngle]}>
+        <planeGeometry args={[barbLength, 0.05]} />
+        <meshStandardMaterial
+          color="#F5F0E8"
+          side={THREE.DoubleSide}
+          transparent
+          opacity={opacity}
+          metalness={0.0}
+          roughness={0.9}
+        />
+      </mesh>
+    );
+  }
+
+  // Wispy tips at the top
+  for (let i = 0; i < 7; i++) {
+    const t = 0.8 + i * 0.028;
+    const spinePos = -1.6 + t * 3.2;
+    const offset = (i % 2 === 0 ? -1 : 1) * (0.15 + i * 0.04);
+    barbs.push(
+      <mesh key={`w${i}`} position={[offset, spinePos, 0.01]} rotation={[0, 0, offset > 0 ? -0.25 : 0.25]}>
+        <planeGeometry args={[0.35, 0.025]} />
+        <meshStandardMaterial
+          color="#FFFFFF"
+          side={THREE.DoubleSide}
+          transparent
+          opacity={0.35}
+          metalness={0.0}
+          roughness={1.0}
+        />
       </mesh>
     );
   }
 
   return (
-    <group ref={groupRef} position={[0, -2.2, 0]}>
-      {/* Spine */}
+    // Lay flat on pan: rotated 90deg on X so it's horizontal, slight Z rotation for natural angle
+    <group ref={groupRef} position={[0.3, -2.65, 0.2]} rotation={[Math.PI / 2, 0, Math.PI / 6]}>
+      {/* Spine — thin tapered quill, long */}
       <mesh>
-        <coneGeometry args={[0.06, 1.4, 8]} />
-        <meshStandardMaterial {...spineMat} />
+        <cylinderGeometry args={[0.012, 0.04, 3.4, 8]} />
+        <meshStandardMaterial color="#D4CFC0" metalness={0.15} roughness={0.7} />
       </mesh>
       {/* Barbs */}
       {barbs}
+      {/* Soft glow underneath feather */}
+      <pointLight color="#E8E4D9" intensity={0.8} distance={3} position={[0, 0, -0.5]} />
     </group>
   );
 }
@@ -239,7 +260,7 @@ export function Scales3D({ isBalanced = false }: { isBalanced?: boolean }) {
             <torusGeometry args={[1.5, 0.06, 16, 32]} />
             <meshStandardMaterial {...scaleMat} />
           </mesh>
-          <Weight balanced={atBalance} />
+          <Weight />
           <pointLight color="#D4A017" intensity={2} distance={4} position={[0, -1.2, 0]} />
         </group>
 

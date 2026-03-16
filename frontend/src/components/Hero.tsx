@@ -93,17 +93,15 @@ export function Hero() {
           </Canvas>
         </div>
 
-        {/* Overlay Content */}
-        <div className="relative z-10 flex flex-col items-center justify-center h-full w-full pointer-events-none">
-          <div className="mt-auto mb-32 text-center">
-            <h1 ref={textRef} className="font-serif text-5xl md:text-7xl lg:text-8xl tracking-tight text-white mb-8 flex flex-wrap justify-center gap-4">
-              {['The', 'deal', 'that', 'actually', 'holds'].map((word, i) => (
-                <span key={i} className="word opacity-0 inline-block">{word}</span>
-              ))}
-            </h1>
+        {/* Overlay Content — headline sits at beam/pivot level (~45% from top) */}
+        <div className="relative z-10 flex flex-col items-center w-full pointer-events-none" style={{ position: 'absolute', top: '42%', transform: 'translateY(-50%)' }}>
+          <h1 ref={textRef} className="font-serif text-5xl md:text-7xl lg:text-8xl tracking-tight text-white mb-6 flex flex-wrap justify-center gap-4 text-center px-4">
+            {['The', 'deal', 'that', 'actually', 'holds'].map((word, i) => (
+              <span key={i} className="word opacity-0 inline-block">{word}</span>
+            ))}
+          </h1>
 
-            <div ref={lineRef} className="w-64 h-px bg-amber-500 mx-auto opacity-0 origin-left" />
-          </div>
+          <div ref={lineRef} className="w-48 h-px bg-amber-500 mx-auto opacity-0 origin-left" />
         </div>
       </div>
     </section>
