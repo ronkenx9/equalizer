@@ -8,16 +8,17 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * @notice Factory-pattern escrow: one contract manages all deals.
  *         The arbiter (EQUALIZER agent wallet) mediates and executes rulings.
  *         autoRelease is permissionless — silence = release.
+ *         Platform fee deducted on every payout.
  */
 contract Escrow is ReentrancyGuard {
     // ── Types ──────────────────────────────────────────────
     enum Status {
-        Created,        // 0 — brand deposited, waiting for delivery
+        Created,           // 0 — brand deposited, waiting for delivery
         DeliverySubmitted, // 1 — creator submitted, dispute window running
-        Disputed,       // 2 — brand raised dispute during window
-        Completed,      // 3 — funds released to creator
-        Refunded,       // 4 — funds returned to brand
-        Cancelled       // 5 — cancelled before delivery
+        Disputed,          // 2 — brand raised dispute during window
+        Completed,         // 3 — funds released to creator
+        Refunded,          // 4 — funds returned to brand
+        Cancelled          // 5 — cancelled before delivery
     }
 
     struct Deal {
@@ -33,6 +34,9 @@ contract Escrow is ReentrancyGuard {
     // ── State ──────────────────────────────────────────────
     address public immutable arbiter;
     uint256 public disputeWindowDuration;
+    uint256 public feeBps;           // Platform fee in basis points (e.g. 250 = 2.5%)
+    address public feeRecipient;     // Where fees go (treasury)
+    uint256 public totalFeesCollected;
     mapping(bytes32 => Deal) public deals;
 
     // ── Events ─────────────────────────────────────────────
@@ -43,6 +47,9 @@ contract Escrow is ReentrancyGuard {
     event DealRefunded(bytes32 indexed dealId, address indexed brand, uint256 amount);
     event DisputeRuled(bytes32 indexed dealId, uint256 creatorShare, uint256 brandShare);
     event DealCancelled(bytes32 indexed dealId);
+    event FeeCollected(bytes32 indexed dealId, uint256 feeAmount);
+    event FeeUpdated(uint256 oldFeeBps, uint256 newFeeBps);
+    event FeeRecipientUpdated(address oldRecipient, address newRecipient);
 
     // ── Modifiers ──────────────────────────────────────────
     modifier onlyArbiter() {
@@ -56,10 +63,45 @@ contract Escrow is ReentrancyGuard {
     }
 
     // ── Constructor ────────────────────────────────────────
-    constructor(address _arbiter, uint256 _disputeWindowDuration) {
+    constructor(address _arbiter, uint256 _disputeWindowDuration, uint256 _feeBps, address _feeRecipient) {
         require(_arbiter != address(0), "Invalid arbiter");
+        require(_feeBps <= 1000, "Fee too high"); // Max 10%
+        require(_feeRecipient != address(0), "Invalid fee recipient");
         arbiter = _arbiter;
         disputeWindowDuration = _disputeWindowDuration;
+        feeBps = _feeBps;
+        feeRecipient = _feeRecipient;
+    }
+
+    // ── Fee Management ─────────────────────────────────────
+
+    /// @notice Arbiter can update the fee for future deals.
+    function setFeeBps(uint256 _feeBps) external onlyArbiter {
+        require(_feeBps <= 1000, "Fee too high"); // Max 10%
+        emit FeeUpdated(feeBps, _feeBps);
+        feeBps = _feeBps;
+    }
+
+    /// @notice Arbiter can update the fee recipient.
+    function setFeeRecipient(address _feeRecipient) external onlyArbiter {
+        require(_feeRecipient != address(0), "Invalid fee recipient");
+        emit FeeRecipientUpdated(feeRecipient, _feeRecipient);
+        feeRecipient = _feeRecipient;
+    }
+
+    // ── Internal: Fee Deduction ────────────────────────────
+
+    /// @dev Deducts platform fee from amount, sends fee to recipient, returns net amount.
+    function _deductFee(bytes32 dealId, uint256 amount) internal returns (uint256 netAmount) {
+        if (feeBps == 0) return amount;
+        uint256 fee = (amount * feeBps) / 10000;
+        netAmount = amount - fee;
+        if (fee > 0) {
+            totalFeesCollected += fee;
+            (bool ok, ) = feeRecipient.call{value: fee}("");
+            require(ok, "Fee transfer failed");
+            emit FeeCollected(dealId, fee);
+        }
     }
 
     // ── Core Functions ─────────────────────────────────────
@@ -112,7 +154,7 @@ contract Escrow is ReentrancyGuard {
         emit DisputeRaised(dealId);
     }
 
-    /// @notice Arbiter releases full funds to creator.
+    /// @notice Arbiter releases full funds to creator (minus fee).
     function release(bytes32 dealId) external onlyArbiter dealExists(dealId) nonReentrant {
         Deal storage d = deals[dealId];
         require(
@@ -123,13 +165,14 @@ contract Escrow is ReentrancyGuard {
         uint256 amount = d.amount;
         d.status = Status.Completed;
 
-        (bool ok, ) = d.creator.call{value: amount}("");
+        uint256 netAmount = _deductFee(dealId, amount);
+        (bool ok, ) = d.creator.call{value: netAmount}("");
         require(ok, "Transfer failed");
 
-        emit DealCompleted(dealId, d.creator, amount);
+        emit DealCompleted(dealId, d.creator, netAmount);
     }
 
-    /// @notice Arbiter refunds full funds to brand.
+    /// @notice Arbiter refunds full funds to brand. No fee on refunds.
     function refund(bytes32 dealId) external onlyArbiter dealExists(dealId) nonReentrant {
         Deal storage d = deals[dealId];
         require(
@@ -146,7 +189,7 @@ contract Escrow is ReentrancyGuard {
         emit DealRefunded(dealId, d.brand, amount);
     }
 
-    /// @notice Arbiter issues ruling after dispute — split funds.
+    /// @notice Arbiter issues ruling after dispute — split funds (fee on creator's share only).
     /// @param creatorBps Creator's share in basis points (0-10000). Brand gets the rest.
     function rule(bytes32 dealId, uint256 creatorBps) external onlyArbiter dealExists(dealId) nonReentrant {
         Deal storage d = deals[dealId];
@@ -154,13 +197,16 @@ contract Escrow is ReentrancyGuard {
         require(creatorBps <= 10000, "Invalid bps");
 
         uint256 total = d.amount;
-        uint256 creatorShare = (total * creatorBps) / 10000;
-        uint256 brandShare = total - creatorShare;
+        uint256 creatorGross = (total * creatorBps) / 10000;
+        uint256 brandShare = total - creatorGross;
 
         d.status = Status.Completed;
 
-        if (creatorShare > 0) {
-            (bool ok1, ) = d.creator.call{value: creatorShare}("");
+        // Fee only on creator's share (they got paid for work)
+        uint256 creatorNet = creatorGross;
+        if (creatorGross > 0) {
+            creatorNet = _deductFee(dealId, creatorGross);
+            (bool ok1, ) = d.creator.call{value: creatorNet}("");
             require(ok1, "Creator transfer failed");
         }
         if (brandShare > 0) {
@@ -168,11 +214,12 @@ contract Escrow is ReentrancyGuard {
             require(ok2, "Brand transfer failed");
         }
 
-        emit DisputeRuled(dealId, creatorShare, brandShare);
+        emit DisputeRuled(dealId, creatorNet, brandShare);
     }
 
     /// @notice PERMISSIONLESS: anyone can trigger after dispute window expires.
     ///         This is the key mechanic — silence = release. No human needed.
+    ///         Fee deducted from creator payout.
     function autoRelease(bytes32 dealId) external dealExists(dealId) nonReentrant {
         Deal storage d = deals[dealId];
         require(d.status == Status.DeliverySubmitted, "Not in delivery phase");
@@ -182,13 +229,14 @@ contract Escrow is ReentrancyGuard {
         uint256 amount = d.amount;
         d.status = Status.Completed;
 
-        (bool ok, ) = d.creator.call{value: amount}("");
+        uint256 netAmount = _deductFee(dealId, amount);
+        (bool ok, ) = d.creator.call{value: netAmount}("");
         require(ok, "Transfer failed");
 
-        emit DealCompleted(dealId, d.creator, amount);
+        emit DealCompleted(dealId, d.creator, netAmount);
     }
 
-    /// @notice Brand cancels deal before delivery submitted.
+    /// @notice Brand cancels deal before delivery submitted. No fee on cancellations.
     function cancelDeal(bytes32 dealId) external dealExists(dealId) nonReentrant {
         Deal storage d = deals[dealId];
         require(d.status == Status.Created, "Cannot cancel");

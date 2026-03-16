@@ -116,11 +116,12 @@ When a brand disputes, both parties submit evidence. The agent reads everything 
 
 **Escrow.sol** — Factory-pattern single contract managing all deals.
 
-- **Address:** [`0x02a51207f114b47DED4fa1597639344747eb4b4D`](https://sepolia.basescan.org/address/0x02a51207f114b47DED4fa1597639344747eb4b4D)
+- **Address:** [`0x7a5c38be124c78da88D4C9F5ebEf72dC41869010`](https://sepolia.basescan.org/address/0x7a5c38be124c78da88D4C9F5ebEf72dC41869010)
 - **Network:** Base Sepolia (Chain ID: 84532)
 - **Arbiter:** Agent wallet (`0x4ECb9254a0bd6fEf749B8B8ab56812Bc44Ee0220`)
-- **Tests:** 18/18 passing (Hardhat)
-- **Security:** OpenZeppelin ReentrancyGuard, immutable arbiter, access-controlled functions
+- **Platform Fee:** 2.5% (250 bps) — deducted on creator payouts only. No fee on refunds or cancellations.
+- **Tests:** 22/22 passing (Hardhat)
+- **Security:** OpenZeppelin ReentrancyGuard, immutable arbiter, access-controlled functions, max 10% fee cap hardcoded
 
 ### Deal Lifecycle
 
@@ -138,11 +139,13 @@ Cancelled ← Created (brand can cancel before delivery)
 |----------|--------|-------------|
 | `createDeal()` | Anyone (payable) | Deposit ETH, set creator + deadline + terms |
 | `submitDelivery()` | Creator/Arbiter | Mark delivered, start dispute window |
-| `autoRelease()` | **Permissionless** | Anyone calls after window → pays creator |
+| `autoRelease()` | **Permissionless** | Anyone calls after window → pays creator (minus fee) |
 | `dispute()` | Brand only | Flag during window |
-| `rule(dealId, bps)` | Arbiter only | Split funds (0-10000 basis points) |
-| `release()` / `refund()` | Arbiter only | Full release or full refund |
-| `cancelDeal()` | Brand only | Cancel before delivery, refund |
+| `rule(dealId, bps)` | Arbiter only | Split funds (0-10000 basis points), fee on creator share |
+| `release()` / `refund()` | Arbiter only | Full release (minus fee) or full refund (no fee) |
+| `cancelDeal()` | Brand only | Cancel before delivery, full refund (no fee) |
+| `setFeeBps()` | Arbiter only | Update platform fee (max 10%) |
+| `setFeeRecipient()` | Arbiter only | Update fee treasury address |
 
 ## Tech Stack
 
@@ -189,7 +192,7 @@ Built for **Synthesis Hackathon** and **PL Genesis**.
 
 ### Onchain Artifacts
 
-- Escrow contract: [`0x02a51207...`](https://sepolia.basescan.org/address/0x02a51207f114b47DED4fa1597639344747eb4b4D)
+- Escrow contract (v2 with fees): [`0x7a5c38be...`](https://sepolia.basescan.org/address/0x7a5c38be124c78da88D4C9F5ebEf72dC41869010)
 - Agent wallet: `0x4ECb9254a0bd6fEf749B8B8ab56812Bc44Ee0220`
 - Synthesis registration: [`0x56c1d3c0...`](https://basescan.org/tx/0x56c1d3c078b8fd71732b117441c03f1920e1e0e7553b7e692577726993b69664)
 - EAS attestations: Minted per completed deal on Base Sepolia
