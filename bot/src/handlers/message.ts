@@ -2,59 +2,72 @@ import { Bot, Context } from "grammy";
 import { detectIntent } from "../services/claude.js";
 import { createDeal } from "../services/store.js";
 import { formatDealCard } from "../utils/format.js";
-import { DealStatus } from "../types/deal.js";
 
 // Message buffer per chat
-const messageBuffers = new Map<number, { user: string; text: string }[]>();
+const messageBuffers = new Map<number, { user: string; text: string; timestamp: number }[]>();
 const BUFFER_SIZE = 20;
-
-// Keywords that trigger intent detection
-const DEAL_KEYWORDS = /\b(deal|pay|deliver|deliverable|hire|gig|deadline|rate|budget|commission|sponsor|collab|collaboration|campaign|post|tweet|thread|content)\b/i;
-const PRICE_PATTERN = /(\$|eth|usdc|usdt|sol|bnb|matic)\s*\d|\d+\s*(eth|usdc|usdt|sol|\$)/i;
-
-function shouldTriggerDetection(messages: { user: string; text: string }[]): boolean {
-  const recent = messages.slice(-5).map((m) => m.text).join(" ");
-  return DEAL_KEYWORDS.test(recent) && PRICE_PATTERN.test(recent);
-}
+const analyzingLocks = new Set<number>();
 
 export function registerMessageHandler(bot: Bot) {
   bot.on("message:text", async (ctx) => {
     const chatId = ctx.chat.id;
     const text = ctx.message.text;
     const username = ctx.from.username ? `@${ctx.from.username}` : `User#${ctx.from.id}`;
+    const timestamp = ctx.message.date * 1000;
 
     // Skip commands
     if (text.startsWith("/")) return;
 
     // Buffer message
     const buffer = messageBuffers.get(chatId) ?? [];
-    buffer.push({ user: username, text });
+    buffer.push({ user: username, text, timestamp });
     if (buffer.length > BUFFER_SIZE) buffer.shift();
     messageBuffers.set(chatId, buffer);
 
-    // Only check if heuristic triggers
-    if (!shouldTriggerDetection(buffer)) return;
-
-    // Avoid double-checking within 30 seconds
-    const lastCheck = lastCheckTime.get(chatId) ?? 0;
-    if (Date.now() - lastCheck < 30_000) return;
-    lastCheckTime.set(chatId, Date.now());
+    // Prevent concurrent Claude calls per chat to avoid race conditions
+    if (analyzingLocks.has(chatId)) return;
+    analyzingLocks.add(chatId);
 
     try {
       const result = await detectIntent(buffer);
-      if (!result.isDeal || result.confidence < 0.8 || !result.terms) return;
 
-      const deal = createDeal(chatId, result.terms);
-      const { text: cardText, keyboard } = formatDealCard(deal.terms, deal.id);
+      if (result.stage === "NOISE") {
+        return;
+      }
 
-      await ctx.reply(
-        `👀 *I detected a deal forming\\!*\n\n${cardText}\n\n_Confidence: ${Math.round(result.confidence * 100)}%_`,
-        { parse_mode: "MarkdownV2", reply_markup: keyboard }
-      );
-    } catch {
-      // Silently fail — intent detection is best-effort
+      if (result.stage === "SIGNAL") {
+        if (result.missing && result.missing.length > 0 && result.message) {
+          // Ask for missing details
+          const escapedMsg = result.message.replace(/([_*[\]()~`>#+\-=|{}.!])/g, "\\$1");
+          await ctx.reply(escapedMsg, { parse_mode: "MarkdownV2" });
+        } else {
+          // Subtle indicator
+          const sent = await ctx.reply("💬 _Detecting potential deal\\.\\.\\._", { parse_mode: "MarkdownV2" });
+          setTimeout(() => {
+            ctx.api.deleteMessage(chatId, sent.message_id).catch(() => { });
+          }, 5000);
+        }
+        return;
+      }
+
+      if (result.stage === "CRYSTALLIZED") {
+        if (!result.terms || result.confidence < 85) return;
+
+        const deal = createDeal(chatId, result.terms);
+        const { text: cardText, keyboard } = formatDealCard(deal.terms, deal.id);
+
+        await ctx.reply(
+          `👀 *I detected a deal forming\\!*\n\n${cardText}\n\n_Confidence: ${Math.round(result.confidence)}%_`,
+          { parse_mode: "MarkdownV2", reply_markup: keyboard }
+        );
+
+        // Clear history after deal is created
+        messageBuffers.delete(chatId);
+      }
+    } catch (err) {
+      console.error("Deal Intent Detection Error:", err);
+    } finally {
+      analyzingLocks.delete(chatId);
     }
   });
 }
-
-const lastCheckTime = new Map<number, number>();

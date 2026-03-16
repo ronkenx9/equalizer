@@ -2,6 +2,9 @@
 
 **An AI agent that evaluates work and pays people.** Internet handshakes finally mean something.
 
+*Bot is live 24/7 at @equalizer_agent_bot*  
+*Deployed on Railway, auto-deploys from main branch*
+
 EQUALIZER is an AI agent that lives in Telegram group chats. It detects deals forming in natural conversation, guides the brand to lock ETH in onchain escrow, autonomously evaluates delivery using Claude, and makes binding payment decisions — releasing, refunding, or splitting funds based on its own AI judgment. No human approval needed. Silence = satisfied.
 
 ## Why This Matters

@@ -15,7 +15,7 @@ import { registerFund } from "./commands/fund.js";
 import { registerMessageHandler } from "./handlers/message.js";
 import { registerConfirmationHandler } from "./handlers/confirmation.js";
 import { registerDisputeHandler } from "./handlers/dispute.js";
-import { startTimeoutChecker } from "./handlers/timeout.js";
+import { startDealMonitor } from "./services/monitor.js";
 
 export function createBot(): Bot {
   const bot = new Bot(config.telegramBotToken);
@@ -40,8 +40,8 @@ export function createBot(): Bot {
   registerDisputeHandler(bot);
   registerMessageHandler(bot);
 
-  // Start timeout checker
-  startTimeoutChecker(bot);
+  // Start autonomous agent loop
+  startDealMonitor(bot);
 
   return bot;
 }

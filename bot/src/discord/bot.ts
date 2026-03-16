@@ -80,7 +80,7 @@ function confirmButtons(dealId: string) {
 
 // ── Conversation Detection ─────────────────────────────
 
-const messageBuffers = new Map<string, { user: string; text: string }[]>();
+const messageBuffers = new Map<string, { user: string; text: string; timestamp: number }[]>();
 const lastCheckTime = new Map<string, number>();
 const BUFFER_SIZE = 20;
 const DEAL_KEYWORDS = /\b(deal|pay|deliver|deliverable|hire|gig|deadline|rate|budget|commission|sponsor|collab|collaboration|campaign|post|tweet|thread|content)\b/i;
@@ -356,7 +356,7 @@ export async function startDiscordBot() {
 
     // Buffer message
     const buffer = messageBuffers.get(channelId) ?? [];
-    buffer.push({ user: username, text });
+    buffer.push({ user: username, text, timestamp: message.createdTimestamp });
     if (buffer.length > BUFFER_SIZE) buffer.shift();
     messageBuffers.set(channelId, buffer);
 
@@ -370,7 +370,7 @@ export async function startDiscordBot() {
 
     try {
       const result = await detectIntent(buffer);
-      if (!result.isDeal || result.confidence < 0.8 || !result.terms) return;
+      if (result.stage !== "CRYSTALLIZED" || result.confidence < 85 || !result.terms) return;
 
       const chatKey = hashChannelId(channelId);
       const deal = createDeal(chatKey, result.terms);
@@ -380,7 +380,7 @@ export async function startDiscordBot() {
 
       const channel = message.channel as TextChannel;
       await channel.send({
-        content: `I detected a deal forming! (Confidence: ${Math.round(result.confidence * 100)}%)`,
+        content: `I detected a deal forming! (Confidence: ${Math.round(result.confidence)}%)`,
         embeds: [embed],
         components: [buttons],
       });
