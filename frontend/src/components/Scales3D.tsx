@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import gsap from 'gsap';
@@ -6,7 +6,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
 
-/** Gold weight cube — slowly rotates, stays a cube always */
+/** Gold ingot — wide, heavy, dense, slowly rotating */
 function Weight() {
   const groupRef = useRef<THREE.Group>(null);
 
@@ -16,22 +16,125 @@ function Weight() {
     }
   });
 
-  const mat = { color: '#D4A017', metalness: 0.95, roughness: 0.05 };
+  const mat = { color: '#D4A017', metalness: 0.98, roughness: 0.02 };
+  const darkMat = { color: '#B8860B', metalness: 0.95, roughness: 0.05 };
 
   return (
-    <group ref={groupRef} position={[0, -2.2, 0]}>
+    <group ref={groupRef} position={[0, -2.4, 0]}>
+      {/* Main ingot body — wider than tall like a real gold bar */}
       <mesh>
-        <boxGeometry args={[1.2, 1.2, 1.2]} />
+        <boxGeometry args={[1.8, 0.6, 0.9]} />
         <meshStandardMaterial {...mat} />
+      </mesh>
+      {/* Engraved lines on top surface */}
+      <mesh position={[0, 0.32, 0]}>
+        <boxGeometry args={[1.4, 0.02, 0.05]} />
+        <meshStandardMaterial {...darkMat} />
+      </mesh>
+      <mesh position={[0, 0.32, 0.2]}>
+        <boxGeometry args={[1.4, 0.02, 0.05]} />
+        <meshStandardMaterial {...darkMat} />
+      </mesh>
+      <mesh position={[0, 0.32, -0.2]}>
+        <boxGeometry args={[1.4, 0.02, 0.05]} />
+        <meshStandardMaterial {...darkMat} />
+      </mesh>
+      {/* Beveled edge highlights */}
+      <mesh position={[0, -0.32, 0]}>
+        <boxGeometry args={[1.9, 0.02, 1.0]} />
+        <meshStandardMaterial {...darkMat} />
       </mesh>
     </group>
   );
 }
 
-/** Feather — realistic wispy feather laying flat on pan */
+/** Create a canvas texture of a feather — procedurally drawn */
+function useFeatherTexture() {
+  return useMemo(() => {
+    const w = 256;
+    const h = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d')!;
+
+    // Clear transparent
+    ctx.clearRect(0, 0, w, h);
+
+    const cx = w / 2;
+
+    // Draw spine (quill) — slight curve
+    ctx.strokeStyle = '#E0D8C8';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(cx, h - 10);
+    ctx.quadraticCurveTo(cx + 5, h * 0.5, cx - 2, 15);
+    ctx.stroke();
+
+    // Draw barbs — lines fanning out from spine
+    const barbCount = 50;
+    for (let i = 0; i < barbCount; i++) {
+      const t = i / (barbCount - 1);
+      const y = h - 20 - t * (h - 40);
+
+      // Spine x at this y (follow the curve)
+      const spineX = cx + 5 * (1 - t) * (1 - t) - 2 * t * t;
+
+      // Width varies: narrow at base and tip, widest at ~35%
+      const widthFactor = Math.sin(t * Math.PI) * (t < 0.35 ? t / 0.35 : 1) * (t > 0.85 ? (1 - t) / 0.15 : 1);
+      const barbLen = 30 + widthFactor * 80;
+
+      const alpha = 0.3 + widthFactor * 0.6;
+      const angle = 0.15 + t * 0.1;
+
+      // Left barb
+      ctx.strokeStyle = `rgba(245, 240, 232, ${alpha})`;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(spineX, y);
+      ctx.lineTo(spineX - barbLen * Math.cos(angle), y - barbLen * Math.sin(angle) * 0.3);
+      ctx.stroke();
+
+      // Right barb
+      ctx.beginPath();
+      ctx.moveTo(spineX, y);
+      ctx.lineTo(spineX + barbLen * Math.cos(angle), y - barbLen * Math.sin(angle) * 0.3);
+      ctx.stroke();
+    }
+
+    // Wispy tip barbs
+    for (let i = 0; i < 8; i++) {
+      const t = 0.88 + i * 0.015;
+      const y = h - 20 - t * (h - 40);
+      const spineX = cx - 2 * t * t;
+      const side = i % 2 === 0 ? -1 : 1;
+      const len = 15 + Math.random() * 25;
+      ctx.strokeStyle = `rgba(255, 255, 255, 0.25)`;
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(spineX, y);
+      ctx.lineTo(spineX + side * len, y - len * 0.2);
+      ctx.stroke();
+    }
+
+    // Soft glow around the feather
+    const gradient = ctx.createRadialGradient(cx, h * 0.45, 10, cx, h * 0.45, 120);
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
+    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, w, h);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    return texture;
+  }, []);
+}
+
+/** Feather — canvas-textured plane, clearly visible white feather on the pan */
 function Feather({ balanced }: { balanced: boolean }) {
   const groupRef = useRef<THREE.Group>(null);
   const frozenRef = useRef(false);
+  const featherTexture = useFeatherTexture();
 
   useEffect(() => {
     frozenRef.current = balanced;
@@ -39,88 +142,27 @@ function Feather({ balanced }: { balanced: boolean }) {
 
   useFrame(({ clock }) => {
     if (groupRef.current && !frozenRef.current) {
-      groupRef.current.rotation.y = Math.sin(clock.elapsedTime * (2 * Math.PI / 3)) * (3 * Math.PI / 180);
+      // Gentle sway
+      groupRef.current.rotation.z = Math.sin(clock.elapsedTime * (2 * Math.PI / 4)) * (3 * Math.PI / 180);
     } else if (groupRef.current && frozenRef.current) {
-      groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, 0, 0.05);
+      groupRef.current.rotation.z = THREE.MathUtils.lerp(groupRef.current.rotation.z, 0, 0.05);
     }
   });
 
-  const barbCount = 24;
-  const barbs = [];
-
-  for (let i = 0; i < barbCount; i++) {
-    const t = i / (barbCount - 1); // 0 to 1 along spine
-    const spinePos = -1.6 + t * 3.2; // longer spine
-
-    // Feather shape: narrow at base, widest at ~35%, tapers to tip
-    const widthCurve = Math.sin(t * Math.PI) * (t < 0.35 ? t / 0.35 : 1) * (t > 0.85 ? (1 - t) / 0.15 : 1);
-    const barbLength = 0.5 + widthCurve * 1.2;
-    const barbAngle = 0.2 + t * 0.12;
-
-    const opacity = 0.5 + widthCurve * 0.45;
-
-    // Left barb
-    barbs.push(
-      <mesh key={`l${i}`} position={[-barbLength * 0.35, spinePos, 0]} rotation={[0, 0, barbAngle]}>
-        <planeGeometry args={[barbLength, 0.05]} />
-        <meshStandardMaterial
-          color="#F5F0E8"
-          side={THREE.DoubleSide}
-          transparent
-          opacity={opacity}
-          metalness={0.0}
-          roughness={0.9}
-        />
-      </mesh>
-    );
-    // Right barb
-    barbs.push(
-      <mesh key={`r${i}`} position={[barbLength * 0.35, spinePos, 0]} rotation={[0, 0, -barbAngle]}>
-        <planeGeometry args={[barbLength, 0.05]} />
-        <meshStandardMaterial
-          color="#F5F0E8"
-          side={THREE.DoubleSide}
-          transparent
-          opacity={opacity}
-          metalness={0.0}
-          roughness={0.9}
-        />
-      </mesh>
-    );
-  }
-
-  // Wispy tips at the top
-  for (let i = 0; i < 7; i++) {
-    const t = 0.8 + i * 0.028;
-    const spinePos = -1.6 + t * 3.2;
-    const offset = (i % 2 === 0 ? -1 : 1) * (0.15 + i * 0.04);
-    barbs.push(
-      <mesh key={`w${i}`} position={[offset, spinePos, 0.01]} rotation={[0, 0, offset > 0 ? -0.25 : 0.25]}>
-        <planeGeometry args={[0.35, 0.025]} />
-        <meshStandardMaterial
-          color="#FFFFFF"
-          side={THREE.DoubleSide}
-          transparent
-          opacity={0.35}
-          metalness={0.0}
-          roughness={1.0}
-        />
-      </mesh>
-    );
-  }
-
   return (
-    // Lay flat on pan: rotated 90deg on X so it's horizontal, slight Z rotation for natural angle
-    <group ref={groupRef} position={[0.3, -2.65, 0.2]} rotation={[Math.PI / 2, 0, Math.PI / 6]}>
-      {/* Spine — thin tapered quill, long */}
+    <group ref={groupRef} position={[0.2, -2.55, 0.15]} rotation={[-0.26, 0.3, 0.15]}>
+      {/* Feather plane with canvas texture */}
       <mesh>
-        <cylinderGeometry args={[0.012, 0.04, 3.4, 8]} />
-        <meshStandardMaterial color="#D4CFC0" metalness={0.15} roughness={0.7} />
+        <planeGeometry args={[1.6, 3.2]} />
+        <meshBasicMaterial
+          map={featherTexture}
+          transparent
+          side={THREE.DoubleSide}
+          depthWrite={false}
+        />
       </mesh>
-      {/* Barbs */}
-      {barbs}
-      {/* Soft glow underneath feather */}
-      <pointLight color="#E8E4D9" intensity={0.8} distance={3} position={[0, 0, -0.5]} />
+      {/* Soft white glow */}
+      <pointLight color="#FFFFFF" intensity={1} distance={3} position={[0, 0, 0.5]} />
     </group>
   );
 }
