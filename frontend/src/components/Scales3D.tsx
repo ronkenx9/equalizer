@@ -167,7 +167,7 @@ function Feather({ balanced }: { balanced: boolean }) {
   );
 }
 
-export function Scales3D({ isBalanced = false }: { isBalanced?: boolean }) {
+export function Scales3D({ isBalanced = false, mobile = false }: { isBalanced?: boolean; mobile?: boolean }) {
   const groupRef = useRef<THREE.Group>(null);
   const leftPanRef = useRef<THREE.Group>(null);
   const rightPanRef = useRef<THREE.Group>(null);
@@ -246,11 +246,15 @@ export function Scales3D({ isBalanced = false }: { isBalanced?: boolean }) {
     rightPanRef.current.rotation.z = -beamRotation;
   });
 
+  // Reduce polygon counts on mobile
+  const seg = mobile ? 12 : 32;
+  const segSm = mobile ? 6 : 16;
+
   const scaleMat = {
     color: '#ffffff',
-    metalness: 0.9,
-    roughness: 0.1,
-    envMapIntensity: 1,
+    metalness: mobile ? 0.5 : 0.9,
+    roughness: mobile ? 0.5 : 0.1,
+    envMapIntensity: mobile ? 0 : 1,
   };
 
   return (
@@ -270,13 +274,13 @@ export function Scales3D({ isBalanced = false }: { isBalanced?: boolean }) {
 
       {/* Base */}
       <mesh position={[0, -4, 0]}>
-        <cylinderGeometry args={[1.5, 2, 0.5, 32]} />
+        <cylinderGeometry args={[1.5, 2, 0.5, seg]} />
         <meshStandardMaterial {...scaleMat} />
       </mesh>
 
       {/* Central Pillar */}
       <mesh position={[0, 0, 0]}>
-        <cylinderGeometry args={[0.2, 0.4, 8, 32]} />
+        <cylinderGeometry args={[0.2, 0.4, 8, seg]} />
         <meshStandardMaterial {...scaleMat} />
       </mesh>
 
@@ -284,22 +288,22 @@ export function Scales3D({ isBalanced = false }: { isBalanced?: boolean }) {
       <group ref={beamRef as React.RefObject<THREE.Group>} position={[0, 3.5, 0]}>
         {/* Main Beam */}
         <mesh rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.1, 0.1, 8, 16]} />
+          <cylinderGeometry args={[0.1, 0.1, 8, segSm]} />
           <meshStandardMaterial {...scaleMat} />
         </mesh>
 
         {/* Left Pan — Weight */}
         <group ref={leftPanRef as React.RefObject<THREE.Group>} position={[-4, 0, 0]}>
           <mesh position={[0, -1.5, 0]}>
-            <cylinderGeometry args={[0.02, 0.02, 3, 8]} />
+            <cylinderGeometry args={[0.02, 0.02, 3, 6]} />
             <meshStandardMaterial color="#888" />
           </mesh>
           <mesh position={[0, -3, 0]}>
-            <cylinderGeometry args={[1.5, 1.3, 0.4, 32]} />
+            <cylinderGeometry args={[1.5, 1.3, 0.4, seg]} />
             <meshStandardMaterial {...scaleMat} />
           </mesh>
           <mesh position={[0, -2.8, 0]}>
-            <torusGeometry args={[1.5, 0.06, 16, 32]} />
+            <torusGeometry args={[1.5, 0.06, segSm, seg]} />
             <meshStandardMaterial {...scaleMat} />
           </mesh>
           <Weight />
@@ -309,15 +313,15 @@ export function Scales3D({ isBalanced = false }: { isBalanced?: boolean }) {
         {/* Right Pan — Feather */}
         <group ref={rightPanRef as React.RefObject<THREE.Group>} position={[4, 0, 0]}>
           <mesh position={[0, -1.5, 0]}>
-            <cylinderGeometry args={[0.02, 0.02, 3, 8]} />
+            <cylinderGeometry args={[0.02, 0.02, 3, 6]} />
             <meshStandardMaterial color="#888" />
           </mesh>
           <mesh position={[0, -3, 0]}>
-            <cylinderGeometry args={[1.5, 1.3, 0.4, 32]} />
+            <cylinderGeometry args={[1.5, 1.3, 0.4, seg]} />
             <meshStandardMaterial {...scaleMat} />
           </mesh>
           <mesh position={[0, -2.8, 0]}>
-            <torusGeometry args={[1.5, 0.06, 16, 32]} />
+            <torusGeometry args={[1.5, 0.06, segSm, seg]} />
             <meshStandardMaterial {...scaleMat} />
           </mesh>
           <Feather balanced={atBalance} />

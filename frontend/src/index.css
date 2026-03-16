@@ -18,7 +18,11 @@ body {
   color: #ffffff;
   font-family: var(--font-sans);
   overflow-x: hidden;
-  cursor: none;
+}
+
+/* Custom cursor only on pointer (non-touch) devices */
+@media (pointer: fine) {
+  body { cursor: none; }
 }
 
 /* Custom Cursor */

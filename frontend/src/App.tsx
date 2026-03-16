@@ -1,32 +1,51 @@
-import { Cursor } from './components/Cursor';
+import { lazy, Suspense } from 'react';
+import { useMobile } from './hooks/useMobile';
 import { ScrollProgress } from './components/ScrollProgress';
 import { Nav } from './components/Nav';
 import { Ticker } from './components/Ticker';
-import { Hero } from './components/Hero';
 import { Problem } from './components/Problem';
-import { HowItWorks } from './components/HowItWorks';
 import { LiveFeed } from './components/LiveFeed';
-import { BalancePrinciple } from './components/BalancePrinciple';
 import { Reputation } from './components/Reputation';
-import { CTA } from './components/CTA';
+
+// Lazy load heavy 3D sections — keeps initial bundle small
+const Hero = lazy(() => import('./components/Hero').then(m => ({ default: m.Hero })));
+const HowItWorks = lazy(() => import('./components/HowItWorks').then(m => ({ default: m.HowItWorks })));
+const BalancePrinciple = lazy(() => import('./components/BalancePrinciple').then(m => ({ default: m.BalancePrinciple })));
+const CTA = lazy(() => import('./components/CTA').then(m => ({ default: m.CTA })));
+const Cursor = lazy(() => import('./components/Cursor').then(m => ({ default: m.Cursor })));
 
 export default function App() {
+  const isMobile = useMobile();
+
   return (
     <div className="bg-base min-h-screen text-white font-sans selection:bg-amber-500/30 selection:text-amber-200">
-      <Cursor />
+      {/* Custom cursor only on desktop */}
+      {!isMobile && (
+        <Suspense fallback={null}>
+          <Cursor />
+        </Suspense>
+      )}
       <ScrollProgress />
 
       <Ticker />
       <Nav />
 
       <main>
-        <Hero />
+        <Suspense fallback={<div className="h-screen bg-base" />}>
+          <Hero />
+        </Suspense>
         <Problem />
-        <HowItWorks />
+        <Suspense fallback={<div className="h-screen bg-base" />}>
+          <HowItWorks />
+        </Suspense>
         <LiveFeed />
-        <BalancePrinciple />
+        <Suspense fallback={null}>
+          <BalancePrinciple />
+        </Suspense>
         <Reputation />
-        <CTA />
+        <Suspense fallback={null}>
+          <CTA />
+        </Suspense>
       </main>
     </div>
   );
