@@ -2,6 +2,9 @@ import { Bot } from "grammy";
 import { getActiveDealsByChat, updateDeal } from "../services/store.js";
 import { DealStatus } from "../types/deal.js";
 
+// Note: on-chain dispute() requires msg.sender == brand, but our agent wallet is the arbiter.
+// The dispute is recorded off-chain here; the arbiter executes the ruling on-chain via rule()/refund().
+
 export function registerDispute(bot: Bot) {
   bot.command("dispute", async (ctx) => {
     const username = ctx.from?.username ? `@${ctx.from.username}` : null;

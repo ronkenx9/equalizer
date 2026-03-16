@@ -4,6 +4,7 @@ import { DealStatus } from "../types/deal.js";
 import { evaluateDelivery } from "../services/claude.js";
 import { getDisputeWindowEnd } from "../utils/timer.js";
 import { config } from "../config.js";
+import { submitDeliveryOnChain, explorerTxUrl } from "../services/chain.js";
 
 export function registerSubmit(bot: Bot) {
   bot.command("submit", async (ctx) => {
@@ -33,6 +34,16 @@ export function registerSubmit(bot: Bot) {
     const evaluation = await evaluateDelivery(deal.terms, delivery);
     const windowEnd = getDisputeWindowEnd();
 
+    // Submit delivery on-chain
+    let txUrl = "";
+    try {
+      const txHash = await submitDeliveryOnChain(deal.id);
+      txUrl = explorerTxUrl(txHash);
+    } catch (err: any) {
+      console.error("Failed to submit delivery onchain:", err);
+      // Continue anyway — delivery is recorded off-chain
+    }
+
     updateDeal(deal.id, {
       status: DealStatus.DisputeWindow,
       delivery,
@@ -46,10 +57,13 @@ export function registerSubmit(bot: Bot) {
       ? `${config.disputeWindowSeconds / 60} minutes`
       : `${windowHours} hours`;
 
+    const txLine = txUrl ? `\n[View onchain tx](${txUrl})\n` : "";
+
     if (evaluation.passed) {
       await ctx.reply(
         `✅ *Delivery evaluated — PASSED*\n\n` +
         `_${evaluation.reasoning}_\n\n` +
+        txLine +
         `⏰ *${windowLabel} dispute window started\\.* ${deal.terms.brandUsername}: review the delivery\\. If you see no issues, stay silent and payment will release automatically\\.`,
         { parse_mode: "MarkdownV2" }
       );
@@ -59,6 +73,7 @@ export function registerSubmit(bot: Bot) {
         `⚠️ *Delivery evaluation — FLAGGED*\n\n` +
         `_${evaluation.reasoning}_\n\n` +
         `Issues:\n${flags}\n\n` +
+        txLine +
         `⏰ *${windowLabel} dispute window has started regardless\\.* ${deal.terms.brandUsername} may dispute or allow auto\\-release\\.`,
         { parse_mode: "MarkdownV2" }
       );

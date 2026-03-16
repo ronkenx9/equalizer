@@ -2,6 +2,8 @@ import { Bot } from "grammy";
 
 // In-memory wallet registry: telegramUserId -> ethereumAddress
 export const walletRegistry = new Map<number, string>();
+// Reverse lookup: @username -> telegramUserId
+export const usernameToTgId = new Map<string, number>();
 
 export function registerWallet(bot: Bot) {
   bot.command("wallet", async (ctx) => {
@@ -27,6 +29,9 @@ export function registerWallet(bot: Bot) {
     }
 
     walletRegistry.set(userId, address.toLowerCase());
+    if (ctx.from?.username) {
+      usernameToTgId.set(`@${ctx.from.username}`, userId);
+    }
     await ctx.reply(`Wallet linked: \`${address.toLowerCase()}\``, { parse_mode: "MarkdownV2" });
   });
 }
