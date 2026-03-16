@@ -7,7 +7,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 gsap.registerPlugin(ScrollTrigger);
 
 /** Gold ingot — wide, heavy, dense, slowly rotating */
-function Weight() {
+function Weight({ mobile = false }: { mobile?: boolean }) {
   const groupRef = useRef<THREE.Group>(null);
 
   useFrame(() => {
@@ -16,8 +16,13 @@ function Weight() {
     }
   });
 
-  const mat = { color: '#D4A017', metalness: 0.98, roughness: 0.02 };
-  const darkMat = { color: '#B8860B', metalness: 0.95, roughness: 0.05 };
+  // On mobile (no env map), use lower metalness so the color shows up under plain lights
+  const mat = mobile
+    ? { color: '#D4A017', metalness: 0.3, roughness: 0.4, emissive: '#7A5A00', emissiveIntensity: 0.3 }
+    : { color: '#D4A017', metalness: 0.98, roughness: 0.02 };
+  const darkMat = mobile
+    ? { color: '#B8860B', metalness: 0.2, roughness: 0.5, emissive: '#5A3E00', emissiveIntensity: 0.2 }
+    : { color: '#B8860B', metalness: 0.95, roughness: 0.05 };
 
   return (
     <group ref={groupRef} position={[0, -2.4, 0]}>
@@ -259,9 +264,9 @@ export function Scales3D({ isBalanced = false, mobile = false }: { isBalanced?: 
 
   return (
     <group ref={groupRef} position={[0, 0, 0]} scale={0.8}>
-      {/* Lighting */}
-      <ambientLight color="#0A0A20" intensity={0.4} />
-      <directionalLight color="#FFFFFF" intensity={0.6} position={[2, 4, 3]} />
+      {/* Lighting — brighter on mobile since there's no env map */}
+      <ambientLight color={mobile ? '#ffffff' : '#0A0A20'} intensity={mobile ? 1.2 : 0.4} />
+      <directionalLight color="#FFFFFF" intensity={mobile ? 1.5 : 0.6} position={[2, 4, 3]} />
 
       {/* Balance pulse light (green, center) */}
       <pointLight
@@ -306,7 +311,7 @@ export function Scales3D({ isBalanced = false, mobile = false }: { isBalanced?: 
             <torusGeometry args={[1.5, 0.06, segSm, seg]} />
             <meshStandardMaterial {...scaleMat} />
           </mesh>
-          <Weight />
+          <Weight mobile={mobile} />
           <pointLight color="#D4A017" intensity={2} distance={4} position={[0, -1.2, 0]} />
         </group>
 
