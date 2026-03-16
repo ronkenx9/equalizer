@@ -6,7 +6,6 @@ gsap.registerPlugin(ScrollTrigger);
 
 export function Problem() {
   const sectionRef = useRef<HTMLElement>(null);
-  const stickyRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const finalLineRef = useRef<HTMLParagraphElement>(null);
 
@@ -16,13 +15,12 @@ export function Problem() {
     const chars = textRef.current.querySelectorAll('.char');
     const highlights = textRef.current.querySelectorAll('.highlight');
 
-    // Pin the section for 200vh of scroll so the user has to read it
+    // CSS sticky handles the pin — no GSAP pin:true, avoids insertBefore crash
     const tl = gsap.timeline({
       scrollTrigger: {
         trigger: sectionRef.current,
         start: 'top top',
-        end: '+=200%',
-        pin: true,
+        end: 'bottom bottom',
         scrub: 0.8,
       }
     });
@@ -39,10 +37,9 @@ export function Problem() {
       color: '#FF6B6B',
       duration: 0.15,
       stagger: 0.08,
-      ease: 'power2.inOut',
     }, 0.4);
 
-    // 70–100%: closing statement slides up
+    // 70–100%: closing line slides up
     tl.fromTo(finalLineRef.current,
       { opacity: 0, y: 30 },
       { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' },
@@ -59,8 +56,9 @@ export function Problem() {
   const wordsToHighlight = ['blocked', 'rugged', 'deleted'];
 
   return (
-    <section ref={sectionRef} className="h-screen bg-base">
-      <div ref={stickyRef} className="h-screen flex flex-col items-center justify-center px-4">
+    // 300vh tall — inner div is CSS sticky, avoids GSAP pin DOM manipulation
+    <section ref={sectionRef} style={{ height: '300vh' }} className="bg-base relative">
+      <div className="sticky top-0 h-screen flex flex-col items-center justify-center px-4">
         <div className="max-w-3xl w-full">
           <div className="mb-8 font-mono text-sm text-gray-500">@Layi_crypt_</div>
 
