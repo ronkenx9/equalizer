@@ -4,6 +4,7 @@ import {
   http,
   parseEther,
   formatEther,
+  encodeFunctionData,
   type Hex,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -88,6 +89,17 @@ const ESCROW_ABI = [
           { name: "status", type: "uint8" },
         ],
       },
+    ],
+  },
+  {
+    name: "DealCreated",
+    type: "event",
+    inputs: [
+      { name: "dealId", type: "bytes32", indexed: true },
+      { name: "brand", type: "address", indexed: true },
+      { name: "creator", type: "address", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
+      { name: "termsHash", type: "string", indexed: false },
     ],
   },
 ] as const;
@@ -213,4 +225,58 @@ export async function getDealFromChain(dealId: string) {
 
 export function explorerTxUrl(txHash: string): string {
   return `https://sepolia.basescan.org/tx/${txHash}`;
+}
+
+// ── Brand Deposit Helpers ────────────────────────────
+
+/**
+ * Generate the calldata for a brand to call createDeal() directly.
+ * Returns the contract address, calldata, and value to send.
+ */
+export function getDepositInstructions(
+  dealId: string,
+  creatorAddress: Hex,
+  deadlineUnix: number,
+  termsHash: string,
+  amountEth: string
+): { to: Hex; data: Hex; value: string; valueBigInt: bigint } {
+  const data = encodeFunctionData({
+    abi: ESCROW_ABI,
+    functionName: "createDeal",
+    args: [toDealIdBytes32(dealId), creatorAddress, BigInt(deadlineUnix), termsHash],
+  });
+
+  return {
+    to: getContractAddress(),
+    data,
+    value: amountEth,
+    valueBigInt: parseEther(amountEth),
+  };
+}
+
+/**
+ * Check if a deal has been funded on-chain by polling the contract state.
+ * Returns the on-chain deal data if funded, or null if not yet created.
+ */
+export async function checkDealFunded(dealId: string): Promise<{
+  brand: string;
+  creator: string;
+  amount: string;
+  funded: boolean;
+} | null> {
+  try {
+    const deal = await getDealFromChain(dealId);
+    // If brand is zero address, deal doesn't exist on-chain yet
+    if (deal.brand === "0x0000000000000000000000000000000000000000") {
+      return null;
+    }
+    return {
+      brand: deal.brand,
+      creator: deal.creator,
+      amount: deal.amount,
+      funded: true,
+    };
+  } catch {
+    return null;
+  }
 }

@@ -2,7 +2,7 @@ import { Bot, RawApi } from "grammy";
 import { getAllDeals, updateDeal } from "../services/store.js";
 import { DealStatus } from "../types/deal.js";
 import { isDisputeWindowExpired } from "../utils/timer.js";
-import { autoReleaseOnChain, explorerTxUrl, getDealFromChain } from "../services/chain.js";
+import { autoReleaseOnChain, explorerTxUrl, getDealFromChain, checkDealFunded } from "../services/chain.js";
 import { mintAttestation, easExplorerUrl } from "../services/eas.js";
 import { parseEther } from "viem";
 
@@ -64,4 +64,34 @@ export function startTimeoutChecker(bot: Bot) {
       }
     }
   }, 60_000); // Check every 60 seconds
+
+  // Watch for brand deposits on confirmed deals (poll every 30s)
+  setInterval(async () => {
+    const allDeals = getAllDeals();
+    const confirmedDeals = allDeals.filter((d) => d.status === DealStatus.Confirmed);
+
+    for (const deal of confirmedDeals) {
+      try {
+        const onChain = await checkDealFunded(deal.id);
+        if (onChain && onChain.funded) {
+          updateDeal(deal.id, {
+            status: DealStatus.Funded,
+            fundedAt: Date.now(),
+          });
+
+          await bot.api.sendMessage(
+            deal.chatId,
+            `🔒 *Deal \\#${deal.id} funded onchain\\!*\n\n` +
+            `*${onChain.amount} ETH* locked in escrow by ${deal.terms.brandUsername}\\.\n` +
+            `Brand wallet: \`${onChain.brand}\`\n\n` +
+            `From this point, the agent controls the funds\\. No human touches the money\\.\n\n` +
+            `${deal.terms.creatorUsername}: deliver by the deadline, then run /submit\\.`,
+            { parse_mode: "MarkdownV2" }
+          );
+        }
+      } catch {
+        // Polling failure — will retry next cycle
+      }
+    }
+  }, 30_000); // Poll every 30 seconds
 }
