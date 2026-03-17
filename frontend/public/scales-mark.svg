@@ -1,0 +1,29 @@
+<svg viewBox="0 0 120 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Vertical post -->
+  <rect x="58" y="22" width="4" height="66" fill="#B08840"/>
+
+  <!-- Horizontal beam — left side lower, right side higher -->
+  <line x1="14" y1="46" x2="106" y2="32" stroke="#B08840" stroke-width="3.5" stroke-linecap="square"/>
+
+  <!-- Left pan strings (from x=20,y=46) -->
+  <line x1="20" y1="46" x2="12" y2="58" stroke="#B08840" stroke-width="2.2"/>
+  <line x1="20" y1="46" x2="34" y2="58" stroke="#B08840" stroke-width="2.2"/>
+
+  <!-- Left pan body — trapezoid open at top, filled rounded bottom -->
+  <path d="M12 58 L8 76 Q23 82 38 76 L34 58 Z" fill="#B08840"/>
+  <!-- Left pan interior cut-out (open trapezoid look) -->
+  <path d="M14 58 L10.5 73 Q23 78 35.5 73 L32 58 Z" fill="#1C1814"/>
+  <!-- Left pan bottom fill (weighted / full) -->
+  <path d="M10.5 73 Q23 82 35.5 73 Q23 79 10.5 73 Z" fill="#B08840"/>
+
+  <!-- Right pan strings (from x=100,y=32) -->
+  <line x1="100" y1="32" x2="90" y2="44" stroke="#B08840" stroke-width="2.2"/>
+  <line x1="100" y1="32" x2="110" y2="44" stroke="#B08840" stroke-width="2.2"/>
+
+  <!-- Right pan — shorter trapezoid, partially filled -->
+  <path d="M90 44 L86 60 Q100 66 114 60 L110 44 Z" fill="#B08840"/>
+  <!-- Right pan interior -->
+  <path d="M92 44 L88.5 57 Q100 62 111.5 57 L108 44 Z" fill="#1C1814"/>
+  <!-- Right pan bottom fill (weighted / full) -->
+  <path d="M88.5 57 Q100 64 111.5 57 Q100 61 88.5 57 Z" fill="#B08840"/>
+</svg>

@@ -31,7 +31,7 @@ export function Ticker() {
   }, []);
 
   return (
-    <div className="fixed top-0 left-0 w-full bg-gray-900 border-b border-gray-800 overflow-hidden py-2 z-50">
+    <div className="fixed top-0 left-0 w-full overflow-hidden py-2 z-50" style={{ backgroundColor: '#1C1814', borderBottom: '1px solid #2E2820', height: '32px' }}>
       <div ref={tickerRef} className="flex whitespace-nowrap font-mono text-xs tracking-widest uppercase text-gray-500">
         {[...tickerItems, ...tickerItems].map((item, i) => (
           <span key={i} className="mx-8 flex items-center gap-2">
