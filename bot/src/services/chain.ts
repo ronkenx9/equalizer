@@ -120,6 +120,7 @@ function getWalletClient() {
 }
 
 function getContractAddress(): Hex {
+  if (config.yieldEscrowAddress) return config.yieldEscrowAddress as Hex;
   if (!config.escrowContractAddress) throw new Error("ESCROW_CONTRACT_ADDRESS not set");
   return config.escrowContractAddress as Hex;
 }

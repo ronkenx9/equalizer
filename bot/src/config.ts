@@ -23,4 +23,5 @@ export const config = {
   easContractAddress: (process.env.EAS_CONTRACT_ADDRESS ?? "0x4200000000000000000000000000000000000021") as `0x${string}`,
   disputeWindowSeconds: parseInt(process.env.DISPUTE_WINDOW_SECONDS ?? "86400"),
   veniceApiKey: process.env.VENICE_API_KEY ?? "",
+  yieldEscrowAddress: (process.env.YIELD_ESCROW_ADDRESS || "") as `0x${string}`,
 };
