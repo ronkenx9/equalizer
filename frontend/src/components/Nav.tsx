@@ -36,28 +36,47 @@ export function Nav() {
         {/* Nav links */}
         <div className="hidden md:flex items-center gap-8 font-mono text-sm tracking-widest uppercase text-gray-400">
           <a href="#how-it-works" className="hover:text-amber-500 transition-colors">Protocol</a>
-          <a href="#live-feed"    className="hover:text-blue-500 transition-colors">Live Feed</a>
-          <a href="#reputation"   className="hover:text-green-500 transition-colors">Reputation</a>
+          <a href="#live-feed" className="hover:text-blue-500 transition-colors">Live Feed</a>
+          <a href="#reputation" className="hover:text-green-500 transition-colors">Reputation</a>
         </div>
 
         {/* CTA */}
-        <a
-          href="https://t.me/equalizer_agent_bot"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-mono uppercase tracking-widest transition-all duration-300"
-          style={{
-            border: '0.5px solid #D4A017',
-            color: '#D4A017',
-            background: 'transparent',
-            fontSize: '12px',
-            padding: '8px 20px',
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(212,160,23,0.1)'; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
-        >
-          Add to Telegram &rarr;
-        </a>
+        <div className="flex items-center gap-4">
+          <a
+            href="https://t.me/equalizer_agent_bot"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-mono uppercase tracking-widest transition-all duration-300 whitespace-nowrap"
+            style={{
+              border: '0.5px solid #D4A017',
+              color: '#D4A017',
+              background: 'transparent',
+              fontSize: '11px',
+              padding: '8px 16px',
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(212,160,23,0.1)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+          >
+            Add to Telegram &rarr;
+          </a>
+          <a
+            href="https://discord.com/oauth2/authorize?client_id=1483076054984822946"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-mono uppercase tracking-widest transition-all duration-300 hidden sm:inline-block whitespace-nowrap"
+            style={{
+              border: '0.5px solid #5865F2',
+              color: '#5865F2',
+              background: 'transparent',
+              fontSize: '11px',
+              padding: '8px 16px',
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(88,101,242,0.1)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+          >
+            Add to Discord &rarr;
+          </a>
+        </div>
       </div>
     </nav>
   );
