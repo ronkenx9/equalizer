@@ -45,9 +45,18 @@ export function Nav() {
           href="https://t.me/equalizer_agent_bot"
           target="_blank"
           rel="noopener noreferrer"
-          className="border border-amber-500/50 text-amber-500 px-6 py-2 font-mono text-xs uppercase tracking-widest hover:bg-amber-500 hover:text-[#1C1814] transition-all duration-300"
+          className="font-mono uppercase tracking-widest transition-all duration-300"
+          style={{
+            border: '0.5px solid #D4A017',
+            color: '#D4A017',
+            background: 'transparent',
+            fontSize: '12px',
+            padding: '8px 20px',
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(212,160,23,0.1)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
         >
-          Start a Deal
+          Add to Telegram &rarr;
         </a>
       </div>
     </nav>

@@ -42,6 +42,13 @@ export function CTA() {
         <div className="mt-6 sm:mt-8 font-mono text-xs text-gray-600 px-4 text-center break-all sm:break-normal">
           Contract: 0x7a5c38be124c78da88D4C9F5ebEf72dC41869010 · Base Sepolia · 2.5% fee
         </div>
+
+        <div
+          className="mt-8 font-mono text-center"
+          style={{ fontSize: '12px', color: 'rgba(232,228,217,0.4)' }}
+        >
+          Telegram · Discord · Any DM · Everywhere deals happen
+        </div>
       </div>
     </section>
   );

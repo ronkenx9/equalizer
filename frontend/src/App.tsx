@@ -3,6 +3,7 @@ import { useMobile } from './hooks/useMobile';
 import { ScrollProgress } from './components/ScrollProgress';
 import { Nav } from './components/Nav';
 import { Ticker } from './components/Ticker';
+import { Stats } from './components/Stats';
 import { Problem } from './components/Problem';
 import { LiveFeed } from './components/LiveFeed';
 import { Reputation } from './components/Reputation';
@@ -34,6 +35,7 @@ export default function App() {
         <Suspense fallback={<div className="h-screen bg-base" />}>
           <Hero />
         </Suspense>
+        <Stats />
         <Problem />
         <Suspense fallback={<div className="h-screen bg-base" />}>
           <HowItWorks />
