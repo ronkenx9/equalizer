@@ -4,30 +4,8 @@ import { DealStatus } from "../types/deal.js";
 import { autoReleaseOnChain, checkDealFunded, explorerTxUrl, getDealFromChain } from "./chain.js";
 import { easExplorerUrl, mintAttestation } from "./eas.js";
 import { parseEther } from "viem";
-import { readFileSync, writeFileSync } from "fs";
-import { resolve, dirname } from "path";
-import { fileURLToPath } from "url";
 import { decideDealAction } from "./claude.js";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const LOG_FILE = resolve(__dirname, "../../data/agentLog.json");
-
-function logAgentDecision(dealId: string, observation: string, decision: string, action: string) {
-    try {
-        const logs = JSON.parse(readFileSync(LOG_FILE, "utf-8"));
-        logs.push({
-            timestamp: new Date().toISOString(),
-            dealId,
-            observation,
-            decision,
-            action
-        });
-        writeFileSync(LOG_FILE, JSON.stringify(logs, null, 2));
-        console.log(`[Agent] ${action} for deal ${dealId}`);
-    } catch (err) {
-        console.error("Failed to write to agentLog.json", err);
-    }
-}
+import { logAgentDecision } from "./agentLog.js";
 
 // Memory block to avoid spamming the same autonomous messages every 60s
 const actionMemory = new Set<string>();
@@ -73,18 +51,22 @@ export function startDealMonitor(bot: Bot) {
                     continue;
                 }
 
-                logAgentDecision(deal.id, decisionNode.observation, decisionNode.decision, decisionNode.action);
-
                 if (decisionNode.decision === "auto_release") {
                     // Mark so we don't spam release if it fails once
                     actionMemory.add(memKey);
                     let txUrl = "";
+                    let txHash = "";
                     try {
-                        const txHash = await autoReleaseOnChain(deal.id);
+                        txHash = await autoReleaseOnChain(deal.id);
                         txUrl = explorerTxUrl(txHash);
                     } catch (err: any) {
                         console.error(`Auto-release onchain failed for deal ${deal.id}:`, err.message);
                     }
+
+                    logAgentDecision(deal.id, decisionNode.observation, decisionNode.decision, decisionNode.action, {
+                        onchain_tx_hash: txHash || undefined,
+                        inference_provider: "claude",
+                    });
 
                     updateDeal(deal.id, { status: DealStatus.Completed, completedAt: Date.now() });
 
@@ -125,6 +107,9 @@ export function startDealMonitor(bot: Bot) {
 
                 } else if (decisionNode.decision === "remind_funding" || decisionNode.decision === "remind_delivery" || decisionNode.decision === "flag_delivery") {
                     actionMemory.add(memKey);
+                    logAgentDecision(deal.id, decisionNode.observation, decisionNode.decision, decisionNode.action, {
+                        inference_provider: "claude",
+                    });
                     if (decisionNode.message) {
                         await bot.api.sendMessage(deal.chatId, decisionNode.message, { parse_mode: "MarkdownV2" }).catch(console.error);
                     }

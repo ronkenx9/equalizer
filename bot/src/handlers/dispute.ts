@@ -2,9 +2,12 @@ import { Bot } from "grammy";
 import { getDeal, getActiveDealsByChat, updateDeal } from "../services/store.js";
 import { DealStatus } from "../types/deal.js";
 import { mediate } from "../services/claude.js";
+import { mediatePrivately } from "../services/venice.js";
+import { logAgentDecision } from "../services/agentLog.js";
 import { executeRuling, releaseFunds, refundFunds, explorerTxUrl, getDealFromChain } from "../services/chain.js";
 import { mintAttestation, easExplorerUrl } from "../services/eas.js";
 import { parseEther } from "viem";
+import { config } from "../config.js";
 
 // Track which deals are collecting evidence and from whom
 const evidenceCollecting = new Set<string>();
@@ -41,17 +44,45 @@ export function registerDisputeHandler(bot: Bot) {
       updateDeal(deal.id, { status: DealStatus.Disputed });
 
       try {
-        const ruling = await mediate(
-          deal.terms,
-          deal.delivery ?? "(no delivery submitted)",
-          evidence.brandEvidence,
-          evidence.creatorEvidence
-        );
+        // Attempt private mediation via Venice, fall back to Claude
+        let ruling: { ruling: "release" | "refund" | "split"; creatorShare: number; reasoning: string; privateReasoning?: string };
+        let inferenceProvider: "venice" | "claude" = "venice";
+
+        if (config.veniceApiKey) {
+          try {
+            ruling = await mediatePrivately(
+              deal.terms,
+              deal.delivery ?? "(no delivery submitted)",
+              evidence.brandEvidence,
+              evidence.creatorEvidence
+            );
+            console.log(`[Venice] Private mediation completed for deal ${deal.id}`);
+          } catch (veniceErr: any) {
+            console.warn(`[Venice] Failed, falling back to Claude: ${veniceErr.message}`);
+            inferenceProvider = "claude";
+            const claudeRuling = await mediate(
+              deal.terms,
+              deal.delivery ?? "(no delivery submitted)",
+              evidence.brandEvidence,
+              evidence.creatorEvidence
+            );
+            ruling = { ...claudeRuling, privateReasoning: undefined };
+          }
+        } else {
+          inferenceProvider = "claude";
+          const claudeRuling = await mediate(
+            deal.terms,
+            deal.delivery ?? "(no delivery submitted)",
+            evidence.brandEvidence,
+            evidence.creatorEvidence
+          );
+          ruling = { ...claudeRuling, privateReasoning: undefined };
+        }
 
         // Execute ruling on-chain
         let txUrl = "";
+        let txHash = "";
         try {
-          let txHash: string;
           if (ruling.ruling === "release") {
             txHash = await releaseFunds(deal.id);
           } else if (ruling.ruling === "refund") {
@@ -63,6 +94,14 @@ export function registerDisputeHandler(bot: Bot) {
         } catch (err: any) {
           console.error("Failed to execute ruling onchain:", err.message);
         }
+
+        // Log decision with private reasoning and tx hash
+        logAgentDecision(deal.id, "Dispute mediated", "dispute_ruling",
+          `Ruling: ${ruling.ruling}, creatorShare: ${ruling.creatorShare}%`, {
+          onchain_tx_hash: txHash || undefined,
+          private_reasoning: ruling.privateReasoning,
+          inference_provider: inferenceProvider,
+        });
 
         updateDeal(deal.id, {
           ruling: { verdict: ruling.ruling, creatorShare: ruling.creatorShare, reasoning: ruling.reasoning },
