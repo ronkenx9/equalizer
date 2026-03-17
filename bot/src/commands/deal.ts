@@ -37,6 +37,7 @@ export function registerDeal(bot: Bot) {
       price,
       currency,
       deadline,
+      disputeWindowSeconds: 86400, // 24 hours fallback for manual deals
       brandUsername,
       creatorUsername,
     });

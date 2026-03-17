@@ -1,7 +1,5 @@
-import { config } from "../config.js";
-
-export function getDisputeWindowEnd(): number {
-  return Date.now() + config.disputeWindowSeconds * 1000;
+export function getDisputeWindowEnd(disputeWindowSeconds: number): number {
+  return Date.now() + disputeWindowSeconds * 1000;
 }
 
 export function isDisputeWindowExpired(windowEnd: number): boolean {

@@ -36,6 +36,7 @@ contract YieldEscrow is ReentrancyGuard {
         uint256 originalAmount;   // ETH deposited by brand
         uint256 wstETHAmount;     // wstETH held in escrow
         uint256 deadline;
+        uint256 disputeWindowDuration;
         uint256 disputeWindowEnd;
         string termsHash;
         Status status;
@@ -43,14 +44,13 @@ contract YieldEscrow is ReentrancyGuard {
 
     address public immutable arbiter;
     IWstETH public immutable wstETH;
-    uint256 public disputeWindowDuration;
     uint256 public feeBps;
     address public feeRecipient;
     uint256 public totalFeesCollected;
     uint256 public totalYieldEarned;
     mapping(bytes32 => Deal) public deals;
 
-    event DealCreated(bytes32 indexed dealId, address indexed brand, address indexed creator, uint256 amount, uint256 wstETHAmount, string termsHash);
+    event DealCreated(bytes32 indexed dealId, address indexed brand, address indexed creator, uint256 amount, uint256 disputeWindowDuration, uint256 wstETHAmount, string termsHash);
     event DeliverySubmitted(bytes32 indexed dealId);
     event DisputeRaised(bytes32 indexed dealId);
     event DealCompleted(bytes32 indexed dealId, address indexed recipient, uint256 amount, uint256 yieldEarned);
@@ -73,7 +73,6 @@ contract YieldEscrow is ReentrancyGuard {
     constructor(
         address _arbiter,
         address _wstETH,
-        uint256 _disputeWindowDuration,
         uint256 _feeBps,
         address _feeRecipient
     ) {
@@ -83,7 +82,6 @@ contract YieldEscrow is ReentrancyGuard {
         require(_feeRecipient != address(0), "Invalid fee recipient");
         arbiter = _arbiter;
         wstETH = IWstETH(_wstETH);
-        disputeWindowDuration = _disputeWindowDuration;
         feeBps = _feeBps;
         feeRecipient = _feeRecipient;
     }
@@ -134,12 +132,14 @@ contract YieldEscrow is ReentrancyGuard {
         bytes32 dealId,
         address creator,
         uint256 deadline,
+        uint256 disputeWindowDuration,
         string calldata termsHash
     ) external payable {
         require(deals[dealId].brand == address(0), "Deal already exists");
         require(creator != address(0), "Invalid creator");
         require(msg.value > 0, "Must deposit ETH");
         require(deadline > block.timestamp, "Deadline must be future");
+        require(disputeWindowDuration > 0, "Window > 0");
 
         // Wrap ETH to wstETH immediately
         uint256 wstETHAmount = wstETH.wrap{value: msg.value}();
@@ -150,12 +150,13 @@ contract YieldEscrow is ReentrancyGuard {
             originalAmount: msg.value,
             wstETHAmount: wstETHAmount,
             deadline: deadline,
+            disputeWindowDuration: disputeWindowDuration,
             disputeWindowEnd: 0,
             termsHash: termsHash,
             status: Status.Created
         });
 
-        emit DealCreated(dealId, msg.sender, creator, msg.value, wstETHAmount, termsHash);
+        emit DealCreated(dealId, msg.sender, creator, msg.value, disputeWindowDuration, wstETHAmount, termsHash);
     }
 
     function submitDelivery(bytes32 dealId) external dealExists(dealId) {
@@ -163,7 +164,7 @@ contract YieldEscrow is ReentrancyGuard {
         require(d.status == Status.Created, "Invalid status");
         require(msg.sender == d.creator || msg.sender == arbiter, "Not authorized");
         d.status = Status.DeliverySubmitted;
-        d.disputeWindowEnd = block.timestamp + disputeWindowDuration;
+        d.disputeWindowEnd = block.timestamp + d.disputeWindowDuration;
         emit DeliverySubmitted(dealId);
     }
 

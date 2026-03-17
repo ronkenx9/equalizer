@@ -17,6 +17,7 @@ export interface DealTerms {
   price: string;
   currency: string;
   deadline: string;
+  disputeWindowSeconds: number;
   brandUsername: string;
   creatorUsername: string;
 }

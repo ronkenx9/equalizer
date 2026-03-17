@@ -71,7 +71,7 @@ export function registerConfirmationHandler(bot: Bot) {
       const termsHash = `${deal.terms.deliverable}|${deal.terms.price}|${deal.terms.deadline}`;
       const amountEth = deal.terms.price.replace(/[^0-9.]/g, "");
 
-      const instructions = getDepositInstructions(dealId, creatorAddress, effectiveDeadline, termsHash, amountEth);
+      const instructions = getDepositInstructions(dealId, creatorAddress, effectiveDeadline, deal.terms.disputeWindowSeconds, termsHash, amountEth);
       const onChainId = toDealIdBytes32(dealId);
       updateDeal(dealId, { onChainId });
 

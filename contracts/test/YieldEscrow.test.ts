@@ -27,7 +27,6 @@ describe("YieldEscrow", function () {
     const escrow = await YieldEscrow.deploy(
       arbiter.address,
       await wstETH.getAddress(),
-      DISPUTE_WINDOW,
       FEE_BPS,
       arbiter.address
     );
@@ -39,7 +38,7 @@ describe("YieldEscrow", function () {
   async function fundedDealFixture() {
     const fixture = await deployFixture();
     const { escrow, brand, creator, deadline } = fixture;
-    await escrow.connect(brand).createDeal(DEAL_ID, creator.address, deadline, TERMS_HASH, {
+    await escrow.connect(brand).createDeal(DEAL_ID, creator.address, deadline, DISPUTE_WINDOW, TERMS_HASH, {
       value: ONE_ETH,
     });
     return fixture;
@@ -64,7 +63,7 @@ describe("YieldEscrow", function () {
   it("should create a deal and wrap ETH to wstETH", async function () {
     const { escrow, wstETH, brand, creator, deadline } = await loadFixture(deployFixture);
 
-    await escrow.connect(brand).createDeal(DEAL_ID, creator.address, deadline, TERMS_HASH, {
+    await escrow.connect(brand).createDeal(DEAL_ID, creator.address, deadline, DISPUTE_WINDOW, TERMS_HASH, {
       value: ONE_ETH,
     });
 
@@ -83,7 +82,7 @@ describe("YieldEscrow", function () {
   it("should reject duplicate deal ID", async function () {
     const { escrow, brand, creator, deadline } = await loadFixture(fundedDealFixture);
     await expect(
-      escrow.connect(brand).createDeal(DEAL_ID, creator.address, deadline, TERMS_HASH, { value: ONE_ETH })
+      escrow.connect(brand).createDeal(DEAL_ID, creator.address, deadline, DISPUTE_WINDOW, TERMS_HASH, { value: ONE_ETH })
     ).to.be.revertedWith("Deal already exists");
   });
 

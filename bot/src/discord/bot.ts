@@ -139,6 +139,7 @@ export async function startDiscordBot() {
             price: amount,
             currency: currency.toUpperCase(),
             deadline,
+            disputeWindowSeconds: 86400, // 24 hours fallback for manual Discord deals
             brandUsername: interaction.user.tag,
             creatorUsername: freelancer.tag,
           };
@@ -299,7 +300,8 @@ export async function startDiscordBot() {
           const depositInfo = getDepositInstructions(
             dealId,
             "0x0000000000000000000000000000000000000000",
-            Math.floor(Date.now() / 1000) + config.disputeWindowSeconds,
+            Math.floor(Date.now() / 1000) + deal.terms.disputeWindowSeconds, // For deadline placeholder 
+            deal.terms.disputeWindowSeconds,
             deal.terms.deliverable,
             deal.terms.price,
           );

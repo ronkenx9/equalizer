@@ -19,14 +19,13 @@ async function main() {
 
     console.log("\n2. Deploying YieldEscrow...");
     const YieldEscrow = await ethers.getContractFactory("YieldEscrow");
-    const escrow = await YieldEscrow.deploy(arbiter, wstETHAddress, disputeWindow, feeBps, feeRecipient);
+    const escrow = await YieldEscrow.deploy(arbiter, wstETHAddress, feeBps, feeRecipient);
     await escrow.waitForDeployment();
     const address = await escrow.getAddress();
 
     console.log("YieldEscrow deployed to:", address);
     console.log("Arbiter:", arbiter);
     console.log("WstETH Address:", wstETHAddress);
-    console.log("Dispute window:", disputeWindow, "seconds");
     console.log("Platform fee:", feeBps, "bps (2.5%)");
     console.log("Fee recipient:", feeRecipient);
     console.log("\nAdd to .env:");

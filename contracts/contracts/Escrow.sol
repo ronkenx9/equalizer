@@ -26,6 +26,7 @@ contract Escrow is ReentrancyGuard {
         address creator;
         uint256 amount;
         uint256 deadline;
+        uint256 disputeWindowDuration;
         uint256 disputeWindowEnd;
         string termsHash;
         Status status;
@@ -33,14 +34,13 @@ contract Escrow is ReentrancyGuard {
 
     // ── State ──────────────────────────────────────────────
     address public immutable arbiter;
-    uint256 public disputeWindowDuration;
     uint256 public feeBps;           // Platform fee in basis points (e.g. 250 = 2.5%)
     address public feeRecipient;     // Where fees go (treasury)
     uint256 public totalFeesCollected;
     mapping(bytes32 => Deal) public deals;
 
     // ── Events ─────────────────────────────────────────────
-    event DealCreated(bytes32 indexed dealId, address indexed brand, address indexed creator, uint256 amount, string termsHash);
+    event DealCreated(bytes32 indexed dealId, address indexed brand, address indexed creator, uint256 amount, uint256 disputeWindowDuration, string termsHash);
     event DeliverySubmitted(bytes32 indexed dealId);
     event DisputeRaised(bytes32 indexed dealId);
     event DealCompleted(bytes32 indexed dealId, address indexed recipient, uint256 amount);
@@ -63,12 +63,11 @@ contract Escrow is ReentrancyGuard {
     }
 
     // ── Constructor ────────────────────────────────────────
-    constructor(address _arbiter, uint256 _disputeWindowDuration, uint256 _feeBps, address _feeRecipient) {
+    constructor(address _arbiter, uint256 _feeBps, address _feeRecipient) {
         require(_arbiter != address(0), "Invalid arbiter");
         require(_feeBps <= 1000, "Fee too high"); // Max 10%
         require(_feeRecipient != address(0), "Invalid fee recipient");
         arbiter = _arbiter;
-        disputeWindowDuration = _disputeWindowDuration;
         feeBps = _feeBps;
         feeRecipient = _feeRecipient;
     }
@@ -111,24 +110,27 @@ contract Escrow is ReentrancyGuard {
         bytes32 dealId,
         address creator,
         uint256 deadline,
+        uint256 disputeWindowDuration,
         string calldata termsHash
     ) external payable {
         require(deals[dealId].brand == address(0), "Deal already exists");
         require(creator != address(0), "Invalid creator");
         require(msg.value > 0, "Must deposit ETH");
         require(deadline > block.timestamp, "Deadline must be future");
+        require(disputeWindowDuration > 0, "Window must be > 0");
 
         deals[dealId] = Deal({
             brand: msg.sender,
             creator: creator,
             amount: msg.value,
             deadline: deadline,
+            disputeWindowDuration: disputeWindowDuration,
             disputeWindowEnd: 0,
             termsHash: termsHash,
             status: Status.Created
         });
 
-        emit DealCreated(dealId, msg.sender, creator, msg.value, termsHash);
+        emit DealCreated(dealId, msg.sender, creator, msg.value, disputeWindowDuration, termsHash);
     }
 
     /// @notice Creator or arbiter marks delivery submitted. Starts dispute window.
@@ -138,7 +140,7 @@ contract Escrow is ReentrancyGuard {
         require(msg.sender == d.creator || msg.sender == arbiter, "Not authorized");
 
         d.status = Status.DeliverySubmitted;
-        d.disputeWindowEnd = block.timestamp + disputeWindowDuration;
+        d.disputeWindowEnd = block.timestamp + d.disputeWindowDuration;
 
         emit DeliverySubmitted(dealId);
     }

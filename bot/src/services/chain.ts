@@ -21,6 +21,7 @@ const ESCROW_ABI = [
       { name: "dealId", type: "bytes32" },
       { name: "creator", type: "address" },
       { name: "deadline", type: "uint256" },
+      { name: "disputeWindowDuration", type: "uint256" },
       { name: "termsHash", type: "string" },
     ],
     outputs: [],
@@ -139,6 +140,7 @@ export async function createDealOnChain(
   dealId: string,
   creatorAddress: Hex,
   deadlineUnix: number,
+  disputeWindowSeconds: number,
   termsHash: string,
   amountEth: string
 ): Promise<Hex> {
@@ -147,7 +149,7 @@ export async function createDealOnChain(
     address: getContractAddress(),
     abi: ESCROW_ABI,
     functionName: "createDeal",
-    args: [toDealIdBytes32(dealId), creatorAddress, BigInt(deadlineUnix), termsHash],
+    args: [toDealIdBytes32(dealId), creatorAddress, BigInt(deadlineUnix), BigInt(disputeWindowSeconds), termsHash],
     value: parseEther(amountEth),
   });
   return hash;
@@ -238,13 +240,14 @@ export function getDepositInstructions(
   dealId: string,
   creatorAddress: Hex,
   deadlineUnix: number,
+  disputeWindowSeconds: number,
   termsHash: string,
   amountEth: string
 ): { to: Hex; data: Hex; value: string; valueBigInt: bigint } {
   const data = encodeFunctionData({
     abi: ESCROW_ABI,
     functionName: "createDeal",
-    args: [toDealIdBytes32(dealId), creatorAddress, BigInt(deadlineUnix), termsHash],
+    args: [toDealIdBytes32(dealId), creatorAddress, BigInt(deadlineUnix), BigInt(disputeWindowSeconds), termsHash],
   });
 
   return {

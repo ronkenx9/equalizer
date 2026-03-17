@@ -32,7 +32,7 @@ export function registerSubmit(bot: Bot) {
     await ctx.reply("📦 Delivery received\\. Evaluating against deal terms\\.\\.\\.", { parse_mode: "MarkdownV2" });
 
     const evaluation = await evaluateDelivery(deal.terms, delivery);
-    const windowEnd = getDisputeWindowEnd();
+    const windowEnd = getDisputeWindowEnd(deal.terms.disputeWindowSeconds);
 
     // Submit delivery on-chain
     let txUrl = "";
@@ -52,9 +52,9 @@ export function registerSubmit(bot: Bot) {
       disputeWindowEnd: windowEnd,
     });
 
-    const windowHours = config.disputeWindowSeconds / 3600;
+    const windowHours = deal.terms.disputeWindowSeconds / 3600;
     const windowLabel = windowHours < 1
-      ? `${config.disputeWindowSeconds / 60} minutes`
+      ? `${deal.terms.disputeWindowSeconds / 60} minutes`
       : `${windowHours} hours`;
 
     const txLine = txUrl ? `\n[View onchain tx](${txUrl})\n` : "";

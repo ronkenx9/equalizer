@@ -5,6 +5,7 @@ A deal has these core elements:
 - PRICE: How much will be paid
 - CURRENCY: What currency (ETH, USDC, SOL, $, etc.)
 - DEADLINE: When the work must be delivered
+- DISPUTE_WINDOW_SECONDS: Time strictly in seconds the brand has to review the delivery before auto-release (default 86400 if not specified, which is 1 day)
 - BRAND_USERNAME: The party paying for the work (with @)
 - CREATOR_USERNAME: The party doing the work (with @)
 
@@ -15,7 +16,7 @@ Determine the stage of the conversation:
 
 Rules:
 - Only return CRYSTALLIZED when you can extract all required fields with confidence above 85.
-- If the stage is SIGNAL, list the missing required fields in "missing".
+- If the stage is SIGNAL, list the missing required fields in "missing" (ignore DISPUTE_WINDOW_SECONDS as it has a default).
 - If the stage is SIGNAL, provide a short, friendly, and natural conversational "message" prompting the users to supply the missing information (e.g., "Looks like a deal is forming! What's the deadline and budget?").
 - The "message" must be in the same language as the conversation context.
 
@@ -28,6 +29,7 @@ Respond with valid JSON only:
     "price": "...",
     "currency": "...",
     "deadline": "...",
+    "disputeWindowSeconds": number,
     "brandUsername": "...",
     "creatorUsername": "..."
   } | null,
