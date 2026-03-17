@@ -1,19 +1,10 @@
-import { useState, useEffect } from 'react';
 
 const NAV_BG = '#1C1814';
 
 export function Nav() {
-  const [isScrolled, setIsScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 50);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
   return (
     <nav
-      className={`fixed left-0 w-full z-40 transition-all duration-300 ${isScrolled ? 'py-2' : 'py-3'}`}
+      className="absolute left-0 w-full z-40 py-3"
       style={{ backgroundColor: NAV_BG, top: '32px' }}
     >
       <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
