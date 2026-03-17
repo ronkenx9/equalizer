@@ -1,0 +1,149 @@
+{
+  "name": "EQUALIZER",
+  "description": "Autonomous AI agent that enforces deals in chat. Detects deal intent from natural conversation, locks ETH in onchain escrow, evaluates delivery using Claude, mediates disputes with private reasoning via Venice AI, and auto-releases payment when silence equals satisfaction. Every decision is logged with onchain transaction hashes.",
+  "version": "1.0.0",
+  "identity": {
+    "registration_tx": "0x56c1d3c078b8fd71732b117441c03f1920e1e0e7553b7e692577726993b69664",
+    "chain": "base",
+    "chain_id": 8453,
+    "operator": "0x4ECb9254a0bd6fEf749B8B8ab56812Bc44Ee0220",
+    "participant_id": "09b2fbbbaa7e4f8ab3cf3eee051613ba",
+    "team_id": "0f572f9f2b534b229674e0281881638f"
+  },
+  "capabilities": [
+    "deal_detection",
+    "escrow_management",
+    "delivery_evaluation",
+    "private_dispute_mediation",
+    "onchain_attestation",
+    "autonomous_monitoring"
+  ],
+  "tools": [
+    {
+      "name": "detectIntent",
+      "type": "ai_inference",
+      "provider": "claude",
+      "model": "claude-sonnet-4-6",
+      "description": "Detects deal formation intent from natural conversation. Returns structured terms when confidence is high."
+    },
+    {
+      "name": "evaluateDelivery",
+      "type": "ai_inference",
+      "provider": "claude",
+      "model": "claude-sonnet-4-6",
+      "description": "Evaluates whether submitted work meets the original deal terms. Returns pass/fail with confidence score."
+    },
+    {
+      "name": "mediateDispute",
+      "type": "ai_inference",
+      "provider": "venice",
+      "model": "llama-3.3-70b",
+      "privacy": "private_reasoning",
+      "description": "Privately mediates disputes using Venice AI. Reasoning is never exposed to parties — only the ruling and a public summary are shared."
+    },
+    {
+      "name": "decideDealAction",
+      "type": "ai_inference",
+      "provider": "claude",
+      "model": "claude-sonnet-4-6",
+      "description": "Autonomous monitor loop — evaluates deal state every 60s and decides: remind, flag, auto-release, or no action."
+    },
+    {
+      "name": "createDeal",
+      "type": "onchain_write",
+      "contract": "0x7a5c38be124c78da88D4C9F5ebEf72dC41869010",
+      "chain": "base-sepolia",
+      "function": "createDeal(bytes32,address,uint256,string)",
+      "description": "Creates a new deal on the escrow contract. Brand deposits ETH as msg.value."
+    },
+    {
+      "name": "submitDelivery",
+      "type": "onchain_write",
+      "contract": "0x7a5c38be124c78da88D4C9F5ebEf72dC41869010",
+      "chain": "base-sepolia",
+      "function": "submitDelivery(bytes32)",
+      "description": "Creator submits delivery. Starts the dispute window timer."
+    },
+    {
+      "name": "release",
+      "type": "onchain_write",
+      "contract": "0x7a5c38be124c78da88D4C9F5ebEf72dC41869010",
+      "chain": "base-sepolia",
+      "function": "release(bytes32)",
+      "description": "Arbiter releases full payment to creator (minus 2.5% fee)."
+    },
+    {
+      "name": "refund",
+      "type": "onchain_write",
+      "contract": "0x7a5c38be124c78da88D4C9F5ebEf72dC41869010",
+      "chain": "base-sepolia",
+      "function": "refund(bytes32)",
+      "description": "Arbiter refunds full amount to brand (no fee)."
+    },
+    {
+      "name": "rule",
+      "type": "onchain_write",
+      "contract": "0x7a5c38be124c78da88D4C9F5ebEf72dC41869010",
+      "chain": "base-sepolia",
+      "function": "rule(bytes32,uint256)",
+      "description": "Arbiter splits funds between creator and brand based on dispute ruling. creatorBps in basis points."
+    },
+    {
+      "name": "autoRelease",
+      "type": "onchain_write",
+      "contract": "0x7a5c38be124c78da88D4C9F5ebEf72dC41869010",
+      "chain": "base-sepolia",
+      "function": "autoRelease(bytes32)",
+      "description": "Permissionless auto-release after dispute window closes. Silence = satisfied."
+    },
+    {
+      "name": "mintAttestation",
+      "type": "onchain_write",
+      "contract": "0x4200000000000000000000000000000000000021",
+      "chain": "base-sepolia",
+      "description": "Mints an EAS attestation recording deal outcome — permanent onchain receipt for both parties."
+    }
+  ],
+  "safety_guardrails": {
+    "max_fee_bps": 1000,
+    "current_fee_bps": 250,
+    "dispute_window_default_seconds": 86400,
+    "human_approval_required_for": [
+      "deal_creation_confirmation",
+      "deal_terms_agreement"
+    ],
+    "agent_autonomous_actions": [
+      "delivery_evaluation",
+      "dispute_mediation",
+      "auto_release_after_window",
+      "funding_reminders",
+      "delivery_reminders",
+      "low_confidence_flags"
+    ],
+    "fallback_on_ai_failure": "split_50_50",
+    "fallback_on_venice_failure": "claude_mediation",
+    "reentrancy_protection": "OpenZeppelin_ReentrancyGuard",
+    "immutable_arbiter": true,
+    "permissionless_auto_release": true,
+    "fee_only_on_creator_payout": true
+  },
+  "architecture": {
+    "privacy": "Dispute mediation uses Venice AI (llama-3.3-70b) for private inference. The agent's detailed reasoning is never exposed to either party. Only the ruling and a brief public explanation are shared. Private reasoning is stored in agent_log.json for auditability but never surfaced to users.",
+    "autonomy": "Monitor loop runs every 60 seconds. Evaluates all active deals. Decides autonomously: remind brand to fund, remind creator to deliver, flag low-confidence deliveries, or auto-release payment when dispute window closes. No human input required for any of these actions.",
+    "settlement": "All fund movements happen onchain via the Escrow contract on Base Sepolia. The agent wallet (arbiter) is the sole entity authorized to release, refund, or split funds. The arbiter address is immutable — set at contract deployment.",
+    "reputation": "Every completed deal mints an EAS attestation on Base Sepolia. Attestations record: dealId, brand address, creator address, amount, deliverable, and outcome. This creates a portable, onchain reputation trail."
+  },
+  "harness": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "source_code": "https://github.com/ronkenx9/equalizer",
+  "platforms": ["telegram", "discord"],
+  "endpoints": {
+    "agent_manifest": "/agent.json",
+    "agent_log": "/agent_log.json",
+    "health": "/health"
+  },
+  "human": {
+    "name": "Ronin (Jack)",
+    "role": "operator"
+  }
+}

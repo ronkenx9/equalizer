@@ -2,7 +2,14 @@ import "dotenv/config";
 import { config } from "./config.js";
 import { initEAS } from "./services/eas.js";
 import http from "http";
+import { readFileSync } from "fs";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
 import { getAllDeals } from "./services/store.js";
+import { LOG_FILE } from "./services/agentLog.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const AGENT_JSON_PATH = resolve(__dirname, "../../agent.json");
 
 console.log("EQUALIZER starting...");
 
@@ -46,6 +53,24 @@ const server = http.createServer((req, res) => {
     const activeDealsCount = getAllDeals().length;
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ status: "ok", uptime: process.uptime(), deals: activeDealsCount }));
+  } else if (req.url === "/agent.json" && req.method === "GET") {
+    try {
+      const agentJson = readFileSync(AGENT_JSON_PATH, "utf-8");
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(agentJson);
+    } catch {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "agent.json not found" }));
+    }
+  } else if (req.url === "/agent_log.json" && req.method === "GET") {
+    try {
+      const logJson = readFileSync(LOG_FILE, "utf-8");
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(logJson);
+    } catch {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end("[]");
+    }
   } else {
     res.writeHead(404);
     res.end();
