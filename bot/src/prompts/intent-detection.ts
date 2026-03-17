@@ -19,6 +19,7 @@ Rules:
 - If the stage is SIGNAL, list the missing required fields in "missing" (ignore DISPUTE_WINDOW_SECONDS as it has a default).
 - If the stage is SIGNAL, provide a short, friendly, and natural conversational "message" prompting the users to supply the missing information (e.g., "Looks like a deal is forming! What's the deadline and budget?").
 - The "message" must be in the same language as the conversation context.
+- If the stage is CRYSTALLIZED, include a simple disclaimer in the "message" field: "Deal detected: [Price] for [Deliverable]. Note: rates vary widely by market and scope. Confirm this works for both parties before locking."
 
 Respond with valid JSON only:
 {

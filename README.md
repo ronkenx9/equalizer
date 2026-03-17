@@ -150,6 +150,11 @@ Cancelled ← Created (brand can cancel before delivery)
 | `setFeeBps()` | Arbiter only | Update platform fee (max 10%) |
 | `setFeeRecipient()` | Arbiter only | Update fee treasury address |
 
+## Roadmap
+
+**Phase 2: Market Rate Oracle** 
+As deal volume grows, EQUALIZER surfaces average rates by category from real completed transactions. Both parties negotiate with full market visibility before the deal is locked. 
+
 ## Tech Stack
 
 - **Runtime:** TypeScript, Grammy.js (Telegram), Node.js
