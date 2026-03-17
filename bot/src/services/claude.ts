@@ -19,7 +19,7 @@ async function callClaude(systemPrompt: string, userMessage: string): Promise<st
   return block.text;
 }
 
-interface IntentResult {
+export interface IntentResult {
   stage: "NOISE" | "SIGNAL" | "CRYSTALLIZED";
   confidence: number;
   terms: {
@@ -39,7 +39,9 @@ export async function detectIntent(messages: { user: string; text: string; times
   const transcript = messages.map((m) => `[${new Date(m.timestamp || Date.now()).toISOString()}] ${m.user}: ${m.text}`).join("\n");
   const raw = await callClaude(INTENT_DETECTION_PROMPT, `Conversation History:\n${transcript}`);
   try {
-    return JSON.parse(raw) as IntentResult;
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON object found");
+    return JSON.parse(jsonMatch[0]) as IntentResult;
   } catch {
     return { stage: "NOISE", confidence: 0, terms: null, missing: [], message: null };
   }
@@ -56,7 +58,9 @@ export async function evaluateDelivery(terms: DealTerms, delivery: string): Prom
   const message = `Deal Terms:\nDeliverable: ${terms.deliverable}\nPrice: ${terms.price} ${terms.currency}\nDeadline: ${terms.deadline}\n\nSubmitted Delivery:\n${delivery}`;
   const raw = await callClaude(DELIVERY_EVALUATION_PROMPT, message);
   try {
-    return JSON.parse(raw) as EvalResult;
+    const jsonMatch = raw.match(/\\{[\\s\\S]*\\}/);
+    if (!jsonMatch) throw new Error("No JSON object found");
+    return JSON.parse(jsonMatch[0]) as EvalResult;
   } catch {
     return { passed: true, confidence: 0.5, reasoning: "Could not parse evaluation. Defaulting to pass.", flags: undefined };
   }
@@ -92,7 +96,9 @@ export async function mediate(
 
   const raw = await callClaude(DISPUTE_MEDIATION_PROMPT, message);
   try {
-    return JSON.parse(raw) as MediationResult;
+    const jsonMatch = raw.match(/\\{[\\s\\S]*\\}/);
+    if (!jsonMatch) throw new Error("No JSON object found");
+    return JSON.parse(jsonMatch[0]) as MediationResult;
   } catch {
     return { ruling: "split", creatorShare: 50, reasoning: "Could not parse mediation. Defaulting to 50/50 split." };
   }
@@ -134,7 +140,9 @@ Respond with JSON only:
 
   const raw = await callClaude("You are a helpful JSON-only AI agent.", prompt);
   try {
-    return JSON.parse(raw) as MonitorDecision;
+    const jsonMatch = raw.match(/\\{[\\s\\S]*\\}/);
+    if (!jsonMatch) throw new Error("No JSON object found");
+    return JSON.parse(jsonMatch[0]) as MonitorDecision;
   } catch {
     return { observation: "Failed to parse decision", decision: "none", action: "Error decoding." };
   }

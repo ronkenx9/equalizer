@@ -84,7 +84,7 @@ const messageBuffers = new Map<string, { user: string; text: string; timestamp: 
 const lastCheckTime = new Map<string, number>();
 const BUFFER_SIZE = 20;
 const DEAL_KEYWORDS = /\b(deal|pay|deliver|deliverable|hire|gig|deadline|rate|budget|commission|sponsor|collab|collaboration|campaign|post|tweet|thread|content)\b/i;
-const PRICE_PATTERN = /(\$|eth|usdc|usdt|sol|bnb|matic)\s*\d|\d+\s*(eth|usdc|usdt|sol|\$)/i;
+const PRICE_PATTERN = /(\$|eth|usdc|usdt|sol|bnb|matic)\s*\d|\d+\s*(\$|eth|usdc|usdt|sol|bnb|matic)/i;
 
 function shouldTriggerDetection(messages: { user: string; text: string }[]): boolean {
   const recent = messages.slice(-5).map((m) => m.text).join(" ");
