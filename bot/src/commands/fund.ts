@@ -3,6 +3,7 @@ import { getDeal, updateDeal } from "../services/store.js";
 import { DealStatus } from "../types/deal.js";
 import { walletRegistry, usernameToTgId } from "./wallet.js";
 import { createDealOnChain, explorerTxUrl, toDealIdBytes32 } from "../services/chain.js";
+import { usdToEth } from "../services/price.js";
 import { type Hex } from "viem";
 
 /**
@@ -49,14 +50,25 @@ export function registerFund(bot: Bot) {
       return;
     }
 
-    await ctx.reply("🔒 Agent locking funds onchain \\(demo mode\\)\\.\\.\\.", { parse_mode: "MarkdownV2" });
+    await ctx.reply("🔒 Locking funds in escrow\\.\\.\\.", { parse_mode: "MarkdownV2" });
 
     try {
       const deadlineDate = new Date(deal.terms.deadline);
       const deadlineUnix = Math.floor(deadlineDate.getTime() / 1000);
       const effectiveDeadline = isNaN(deadlineUnix) ? Math.floor(Date.now() / 1000) + 7 * 86400 : deadlineUnix;
       const termsHash = `${deal.terms.deliverable}|${deal.terms.price}|${deal.terms.deadline}`;
-      const amountEth = deal.terms.price.replace(/[^0-9.]/g, "");
+      const priceLabel = deal.terms.price.replace(/[^0-9.]/g, "");
+      const currency = deal.terms.currency?.toUpperCase() || "USD";
+      const numericPrice = parseFloat(priceLabel);
+      let amountEth: string;
+      let ethPrice = 0;
+      if (currency === "ETH") {
+        amountEth = priceLabel;
+      } else {
+        const conversion = await usdToEth(numericPrice);
+        amountEth = conversion.ethAmount;
+        ethPrice = conversion.ethPrice;
+      }
 
       const txHash = await createDealOnChain(dealId, creatorAddress, effectiveDeadline, deal.terms.disputeWindowSeconds, termsHash, amountEth);
 
@@ -69,11 +81,11 @@ export function registerFund(bot: Bot) {
 
       const txUrl = explorerTxUrl(txHash);
       await ctx.reply(
-        `🔒 *Deal \\#${dealId} funded onchain\\!* \\(demo mode\\)\n\n` +
-        `*${amountEth} ETH* locked in escrow\\.\n` +
+        `🔒 *Deal \\#${dealId} locked onchain\\!*\n\n` +
+        `*${priceLabel} ${currency}* \\(${amountEth} ETH\\) secured in escrow\\.\n` +
         `[View transaction](${txUrl})\n\n` +
-        `From this point, the agent controls the funds\\. No human touches the money\\.\n\n` +
-        `${deal.terms.creatorUsername}: deliver by the deadline, then run /submit\\.`,
+        `The agent controls the funds now\\. No human touches the money\\.\n\n` +
+        `${deal.terms.creatorUsername}: deliver by the deadline, then share your deliverable here\\.`,
         { parse_mode: "MarkdownV2" }
       );
     } catch (err: any) {

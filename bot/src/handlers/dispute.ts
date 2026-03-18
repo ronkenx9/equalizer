@@ -14,18 +14,18 @@ const evidenceCollecting = new Set<string>();
 
 export function registerDisputeHandler(bot: Bot) {
   // Listen for text messages during evidence collection
-  bot.on("message:text", async (ctx) => {
+  bot.on("message:text", async (ctx, next) => {
     const chatId = ctx.chat.id;
     const username = ctx.from.username ? `@${ctx.from.username}` : null;
-    if (!username || ctx.message.text.startsWith("/")) return;
+    if (!username || ctx.message.text.startsWith("/")) return next();
 
     const active = getActiveDealsByChat(chatId);
     const deal = active.find((d) => d.status === DealStatus.EvidenceCollection);
-    if (!deal) return;
+    if (!deal) return next();
 
     const isBrand = deal.terms.brandUsername === username;
     const isCreator = deal.terms.creatorUsername === username;
-    if (!isBrand && !isCreator) return;
+    if (!isBrand && !isCreator) return next();
 
     const evidence = deal.evidence ?? {};
     if (isBrand && !evidence.brandEvidence) {
@@ -91,30 +91,34 @@ export function registerDisputeHandler(bot: Bot) {
             txHash = await executeRuling(deal.id, ruling.creatorShare);
           }
           txUrl = explorerTxUrl(txHash);
+
+          // Log decision with private reasoning and tx hash
+          logAgentDecision(deal.id, "Dispute mediated", "dispute_ruling",
+            `Ruling: ${ruling.ruling}, creatorShare: ${ruling.creatorShare}%`, {
+            onchain_tx_hash: txHash,
+            private_reasoning: ruling.privateReasoning,
+            inference_provider: inferenceProvider,
+          });
+
+          updateDeal(deal.id, {
+            ruling: { verdict: ruling.ruling, creatorShare: ruling.creatorShare, reasoning: ruling.reasoning },
+            status: DealStatus.Completed,
+            completedAt: Date.now(),
+          });
         } catch (err: any) {
           console.error("Failed to execute ruling onchain:", err.message);
+          const escapedCreator = deal.terms.creatorUsername.replace(/([_*[\]()~`>#+\-=|{}.!])/g, "\\$1");
+          updateDeal(deal.id, { status: DealStatus.EvidenceCollection, evidence: { brandEvidence: evidence.brandEvidence } });
+          await ctx.reply(`⚠️ Failed to execute ruling on\\-chain \\(Network Error\\)\\. ${escapedCreator} please just say anything to re\\-trigger the mediation\\.`, { parse_mode: "MarkdownV2" });
+          return;
         }
-
-        // Log decision with private reasoning and tx hash
-        logAgentDecision(deal.id, "Dispute mediated", "dispute_ruling",
-          `Ruling: ${ruling.ruling}, creatorShare: ${ruling.creatorShare}%`, {
-          onchain_tx_hash: txHash || undefined,
-          private_reasoning: ruling.privateReasoning,
-          inference_provider: inferenceProvider,
-        });
-
-        updateDeal(deal.id, {
-          ruling: { verdict: ruling.ruling, creatorShare: ruling.creatorShare, reasoning: ruling.reasoning },
-          status: DealStatus.Completed,
-          completedAt: Date.now(),
-        });
 
         const verdictLine =
           ruling.ruling === "release"
             ? `Full payment released to ${deal.terms.creatorUsername}`
             : ruling.ruling === "refund"
-            ? `Full refund to ${deal.terms.brandUsername}`
-            : `Split: ${ruling.creatorShare}% to ${deal.terms.creatorUsername}, ${100 - ruling.creatorShare}% refunded to ${deal.terms.brandUsername}`;
+              ? `Full refund to ${deal.terms.brandUsername}`
+              : `Split: ${ruling.creatorShare}% to ${deal.terms.creatorUsername}, ${100 - ruling.creatorShare}% refunded to ${deal.terms.brandUsername}`;
 
         // Mint EAS attestation
         let easLine = "";

@@ -185,11 +185,22 @@ export async function startDiscordBot() {
 
           try {
             const evaluation = await evaluateDelivery(deal.terms, delivery);
+            const windowEnd = Math.floor(Date.now() / 1000) * 1000 + (deal.terms.disputeWindowSeconds * 1000);
+
+            try {
+              const txHash = await submitDeliveryOnChain(deal.id);
+            } catch (err: any) {
+              console.error("Failed to submit delivery onchain via Discord:", err);
+              await interaction.editReply({ content: `⚠️ Failed to submit delivery on-chain (Network Error). Please try again later.` });
+              return;
+            }
+
             updateDeal(dealId, {
-              status: DealStatus.DeliverySubmitted,
+              status: DealStatus.DisputeWindow,
               delivery,
               deliveryEvaluation: evaluation,
               deliverySubmittedAt: Date.now(),
+              disputeWindowEnd: windowEnd,
             });
 
             const embed = new EmbedBuilder()

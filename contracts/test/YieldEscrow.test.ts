@@ -231,9 +231,12 @@ describe("YieldEscrow", function () {
   // ── cancel with yield ─────────────────────────────────
 
   it("should cancel deal and return principal, yield to treasury", async function () {
-    const { escrow, wstETH, brand } = await loadFixture(fundedDealFixture);
+    const { escrow, wstETH, brand, deadline } = await loadFixture(fundedDealFixture);
 
     await wstETH.simulateYield(ethers.parseEther("1.01"));
+
+    // Fast-forward past the deadline
+    await time.increaseTo(deadline + 1);
 
     const brandBefore = await ethers.provider.getBalance(brand.address);
     const tx = await escrow.connect(brand).cancelDeal(DEAL_ID);

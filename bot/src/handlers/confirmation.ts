@@ -2,7 +2,7 @@ import { Bot } from "grammy";
 import { getDeal, updateDeal } from "../services/store.js";
 import { DealStatus } from "../types/deal.js";
 import { walletRegistry, usernameToTgId } from "../commands/wallet.js";
-import { createDealOnChain, getDepositInstructions, explorerTxUrl, toDealIdBytes32 } from "../services/chain.js";
+import { getPaymentMessage } from "../services/x402.js";
 import { type Hex } from "viem";
 
 export function registerConfirmationHandler(bot: Bot) {
@@ -58,32 +58,28 @@ export function registerConfirmationHandler(bot: Bot) {
       if (!creatorAddress) {
         await ctx.reply(
           `🤝 *Deal \\#${dealId} confirmed\\!*\n\n` +
-          `⚠️ Creator must link a wallet first\\. Use /wallet 0x\\.\\.\\. to link your ETH address\\.`,
+          `${deal.terms.creatorUsername}: drop your ETH wallet address here so we can set up the escrow\\.`,
           { parse_mode: "MarkdownV2" }
         );
         return;
       }
 
-      // Parse deadline and amount
-      const deadlineDate = new Date(deal.terms.deadline);
-      const deadlineUnix = Math.floor(deadlineDate.getTime() / 1000);
-      const effectiveDeadline = isNaN(deadlineUnix) ? Math.floor(Date.now() / 1000) + 7 * 86400 : deadlineUnix;
-      const termsHash = `${deal.terms.deliverable}|${deal.terms.price}|${deal.terms.deadline}`;
-      const amountEth = deal.terms.price.replace(/[^0-9.]/g, "");
-
-      const instructions = getDepositInstructions(dealId, creatorAddress, effectiveDeadline, deal.terms.disputeWindowSeconds, termsHash, amountEth);
-      const onChainId = toDealIdBytes32(dealId);
-      updateDeal(dealId, { onChainId });
+      const priceNum = parseFloat(deal.terms.price.replace(/[^0-9.]/g, ""));
+      const { text: paymentMsg, paymentUrl } = await getPaymentMessage(
+        dealId,
+        priceNum,
+        deal.terms.brandUsername,
+        deal.terms.creatorUsername
+      );
 
       await ctx.reply(
-        `🤝 *Deal \\#${dealId} confirmed by both parties\\!*\n\n` +
-        `${deal.terms.brandUsername}: send *${amountEth} ETH* to the escrow contract to lock the deal\\.\n\n` +
-        `*Contract:* \`${instructions.to}\`\n` +
-        `*Network:* Base Sepolia \\(Chain ID 84532\\)\n` +
-        `*Amount:* ${amountEth} ETH\n\n` +
-        `Once your deposit lands, the agent takes over\\. From that point, no human touches the money\\.\n\n` +
-        `_For the hackathon demo, use /fund ${dealId} to have the agent lock funds on your behalf\\._`,
-        { parse_mode: "MarkdownV2" }
+        `🤝 *Deal \\#${dealId} confirmed by both parties\\!*\n\n` + paymentMsg,
+        {
+          parse_mode: "MarkdownV2",
+          reply_markup: {
+            inline_keyboard: [[{ text: `💳 Pay $${priceNum} USDC`, url: paymentUrl }]],
+          },
+        }
       );
     } else {
       const waiting = newStatus === DealStatus.BrandConfirmed

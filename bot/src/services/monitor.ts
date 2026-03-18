@@ -43,32 +43,67 @@ export function startDealMonitor(bot: Bot) {
                     }
                 }
 
-                // AI Decision making Loop
+                // Deterministic local pre-checks to PREVENT burning AI credits every 60s
+                let needsDecision = false;
+
+                if (deal.status === DealStatus.DisputeWindow && deal.disputeWindowEnd && Date.now() > deal.disputeWindowEnd) {
+                    needsDecision = true; // Dispute window expired, needs auto-release
+                } else if (deal.status === DealStatus.Confirmed) {
+                    if (Date.now() - deal.createdAt > 2 * 60 * 60 * 1000) needsDecision = true; // 2 hours passed
+                } else if (deal.status === DealStatus.Funded && deal.fundedAt) {
+                    // Try to guess 80% time passed purely roughly so we don't call AI until close
+                    const deadlineUnix = new Date(deal.terms.deadline).getTime();
+                    if (!isNaN(deadlineUnix)) {
+                        const total = deadlineUnix - deal.fundedAt;
+                        const elapsed = Date.now() - deal.fundedAt;
+                        if (elapsed / total >= 0.8) needsDecision = true;
+                    }
+                } else if (deal.status === DealStatus.DeliverySubmitted) {
+                    if (deal.deliveryEvaluation && deal.deliveryEvaluation.confidence < 0.70) needsDecision = true;
+                }
+
+                if (!needsDecision) continue;
+
+                // Stop the AI from evaluating the exact same state every 60 seconds if it already acted
+                const stateMemKey = `${deal.id}-state-${deal.status}`;
+                if (actionMemory.has(stateMemKey)) continue;
+
                 const decisionNode = await decideDealAction(deal);
+
+                // Lock this state so we never call the AI for it again
+                actionMemory.add(stateMemKey);
+
                 const memKey = `${deal.id}-${decisionNode.decision}`;
 
-                if (decisionNode.decision === "none" || actionMemory.has(memKey)) {
+                // Memory lock ALWAYS triggers if we processed it, even if "none", to stop infinite retry burn
+                if (actionMemory.has(memKey) || decisionNode.decision === "none") {
+                    if (decisionNode.decision === "none") actionMemory.add(memKey);
                     continue;
                 }
 
                 if (decisionNode.decision === "auto_release") {
                     // Mark so we don't spam release if it fails once
                     actionMemory.add(memKey);
+
                     let txUrl = "";
                     let txHash = "";
                     try {
                         txHash = await autoReleaseOnChain(deal.id);
                         txUrl = explorerTxUrl(txHash);
+
+                        logAgentDecision(deal.id, decisionNode.observation, decisionNode.decision, decisionNode.action, {
+                            onchain_tx_hash: txHash,
+                            inference_provider: "claude",
+                        });
+
+                        updateDeal(deal.id, { status: DealStatus.Completed, completedAt: Date.now() });
                     } catch (err: any) {
                         console.error(`Auto-release onchain failed for deal ${deal.id}:`, err.message);
+                        // CRITICAL: Unlock memory so this can retry on the next 60s tick
+                        actionMemory.delete(memKey);
+                        actionMemory.delete(stateMemKey);
+                        continue;
                     }
-
-                    logAgentDecision(deal.id, decisionNode.observation, decisionNode.decision, decisionNode.action, {
-                        onchain_tx_hash: txHash || undefined,
-                        inference_provider: "claude",
-                    });
-
-                    updateDeal(deal.id, { status: DealStatus.Completed, completedAt: Date.now() });
 
                     // Mint EAS attestation
                     let easLine = "";

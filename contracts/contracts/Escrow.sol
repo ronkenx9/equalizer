@@ -28,6 +28,7 @@ contract Escrow is ReentrancyGuard {
         uint256 deadline;
         uint256 disputeWindowDuration;
         uint256 disputeWindowEnd;
+        uint256 feeBps; // Locked at creation
         string termsHash;
         Status status;
     }
@@ -90,10 +91,10 @@ contract Escrow is ReentrancyGuard {
 
     // ── Internal: Fee Deduction ────────────────────────────
 
-    /// @dev Deducts platform fee from amount, sends fee to recipient, returns net amount.
-    function _deductFee(bytes32 dealId, uint256 amount) internal returns (uint256 netAmount) {
-        if (feeBps == 0) return amount;
-        uint256 fee = (amount * feeBps) / 10000;
+    /// @dev Deducts platform fee from amount, sends fee to treasury.
+    function _deductFee(bytes32 dealId, uint256 amount, uint256 dealFeeBps) internal returns (uint256 netAmount) {
+        if (dealFeeBps == 0) return amount;
+        uint256 fee = (amount * dealFeeBps) / 10000;
         netAmount = amount - fee;
         if (fee > 0) {
             totalFeesCollected += fee;
@@ -126,11 +127,23 @@ contract Escrow is ReentrancyGuard {
             deadline: deadline,
             disputeWindowDuration: disputeWindowDuration,
             disputeWindowEnd: 0,
+            feeBps: feeBps,
             termsHash: termsHash,
             status: Status.Created
         });
 
         emit DealCreated(dealId, msg.sender, creator, msg.value, disputeWindowDuration, termsHash);
+    }
+
+    /// @notice Allows the brand or the AI arbiter to grant the creator more time to deliver.
+    function extendDeadline(bytes32 dealId, uint256 newDeadline) external dealExists(dealId) {
+        Deal storage d = deals[dealId];
+        require(d.status == Status.Created, "Can only extend before delivery");
+        require(msg.sender == d.brand || msg.sender == arbiter, "Only brand or arbiter");
+        require(newDeadline > d.deadline, "New deadline must be greater");
+        
+        d.deadline = newDeadline;
+        // Optionally emit an event, but for simplicity we just update state
     }
 
     /// @notice Creator or arbiter marks delivery submitted. Starts dispute window.
@@ -167,7 +180,7 @@ contract Escrow is ReentrancyGuard {
         uint256 amount = d.amount;
         d.status = Status.Completed;
 
-        uint256 netAmount = _deductFee(dealId, amount);
+        uint256 netAmount = _deductFee(dealId, amount, d.feeBps);
         (bool ok, ) = d.creator.call{value: netAmount}("");
         require(ok, "Transfer failed");
 
@@ -207,7 +220,7 @@ contract Escrow is ReentrancyGuard {
         // Fee only on creator's share (they got paid for work)
         uint256 creatorNet = creatorGross;
         if (creatorGross > 0) {
-            creatorNet = _deductFee(dealId, creatorGross);
+            creatorNet = _deductFee(dealId, creatorGross, d.feeBps);
             (bool ok1, ) = d.creator.call{value: creatorNet}("");
             require(ok1, "Creator transfer failed");
         }
@@ -231,7 +244,7 @@ contract Escrow is ReentrancyGuard {
         uint256 amount = d.amount;
         d.status = Status.Completed;
 
-        uint256 netAmount = _deductFee(dealId, amount);
+        uint256 netAmount = _deductFee(dealId, amount, d.feeBps);
         (bool ok, ) = d.creator.call{value: netAmount}("");
         require(ok, "Transfer failed");
 
@@ -243,6 +256,7 @@ contract Escrow is ReentrancyGuard {
         Deal storage d = deals[dealId];
         require(d.status == Status.Created, "Cannot cancel");
         require(msg.sender == d.brand, "Only brand can cancel");
+        require(block.timestamp > d.deadline, "Deadline has not passed");
 
         uint256 amount = d.amount;
         d.status = Status.Cancelled;

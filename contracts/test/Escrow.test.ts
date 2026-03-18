@@ -13,7 +13,7 @@ describe("Escrow", function () {
     const [arbiter, brand, creator, other] = await ethers.getSigners();
     const Escrow = await ethers.getContractFactory("Escrow");
     // feeRecipient = arbiter for simplicity in tests
-    const escrow = await Escrow.deploy(arbiter.address, DISPUTE_WINDOW, FEE_BPS, arbiter.address);
+    const escrow = await Escrow.deploy(arbiter.address, FEE_BPS, arbiter.address);
     const deadline = (await time.latest()) + 7 * 86400; // 7 days from now
     return { escrow, arbiter, brand, creator, other, deadline };
   }
@@ -21,7 +21,7 @@ describe("Escrow", function () {
   async function fundedDealFixture() {
     const fixture = await deployFixture();
     const { escrow, brand, creator, deadline } = fixture;
-    await escrow.connect(brand).createDeal(DEAL_ID, creator.address, deadline, TERMS_HASH, {
+    await escrow.connect(brand).createDeal(DEAL_ID, creator.address, deadline, DISPUTE_WINDOW, TERMS_HASH, {
       value: ONE_ETH,
     });
     return fixture;
@@ -39,12 +39,12 @@ describe("Escrow", function () {
   it("should create a deal with ETH deposit", async function () {
     const { escrow, brand, creator, deadline } = await loadFixture(deployFixture);
     await expect(
-      escrow.connect(brand).createDeal(DEAL_ID, creator.address, deadline, TERMS_HASH, {
+      escrow.connect(brand).createDeal(DEAL_ID, creator.address, deadline, DISPUTE_WINDOW, TERMS_HASH, {
         value: ONE_ETH,
       })
     )
       .to.emit(escrow, "DealCreated")
-      .withArgs(DEAL_ID, brand.address, creator.address, ONE_ETH, TERMS_HASH);
+      .withArgs(DEAL_ID, brand.address, creator.address, ONE_ETH, DISPUTE_WINDOW, TERMS_HASH);
 
     const deal = await escrow.getDeal(DEAL_ID);
     expect(deal.brand).to.equal(brand.address);
@@ -56,7 +56,7 @@ describe("Escrow", function () {
   it("should reject duplicate deal ID", async function () {
     const { escrow, brand, creator, deadline } = await loadFixture(fundedDealFixture);
     await expect(
-      escrow.connect(brand).createDeal(DEAL_ID, creator.address, deadline, TERMS_HASH, {
+      escrow.connect(brand).createDeal(DEAL_ID, creator.address, deadline, DISPUTE_WINDOW, TERMS_HASH, {
         value: ONE_ETH,
       })
     ).to.be.revertedWith("Deal already exists");
@@ -65,7 +65,7 @@ describe("Escrow", function () {
   it("should reject zero deposit", async function () {
     const { escrow, brand, creator, deadline } = await loadFixture(deployFixture);
     await expect(
-      escrow.connect(brand).createDeal(DEAL_ID, creator.address, deadline, TERMS_HASH, {
+      escrow.connect(brand).createDeal(DEAL_ID, creator.address, deadline, DISPUTE_WINDOW, TERMS_HASH, {
         value: 0,
       })
     ).to.be.revertedWith("Must deposit ETH");
@@ -252,8 +252,12 @@ describe("Escrow", function () {
 
   // ── cancelDeal — NO fee ───────────────────────────
 
-  it("should allow brand to cancel before delivery — no fee", async function () {
-    const { escrow, brand } = await loadFixture(fundedDealFixture);
+  it("should allow brand to cancel if deadline passed with no delivery — no fee", async function () {
+    const { escrow, brand, deadline } = await loadFixture(fundedDealFixture);
+
+    // Fast-forward past the deadline
+    await time.increaseTo(deadline + 1);
+
     await expect(escrow.connect(brand).cancelDeal(DEAL_ID))
       .to.emit(escrow, "DealCancelled")
       .withArgs(DEAL_ID);

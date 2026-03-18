@@ -1,6 +1,6 @@
 import { DealState, DealStatus, DealTerms } from "../types/deal.js";
 import { randomBytes } from "crypto";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -32,7 +32,13 @@ function saveToDisk(): void {
       mkdirSync(dir, { recursive: true });
     }
     const entries = [...deals.entries()];
-    writeFileSync(STORE_FILE, JSON.stringify(entries, null, 2));
+
+    // Atomic write to prevent database corruption on process crash
+    const tempFile = `${STORE_FILE}.tmp`;
+    writeFileSync(tempFile, JSON.stringify(entries, null, 2));
+
+    // renameSync replaces the destination file atomically on POSIX/Windows
+    renameSync(tempFile, STORE_FILE);
   } catch (err) {
     console.warn("Failed to save deals to disk:", err);
   }

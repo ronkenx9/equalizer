@@ -16,11 +16,16 @@ export const config = {
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN ?? "",
   discordBotToken: process.env.DISCORD_BOT_TOKEN ?? "",
   discordAppId: process.env.DISCORD_APP_ID ?? "",
-  claudeApiKey: process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || required("CLAUDE_API_KEY_OR_ANTHROPIC_API_KEY"),
+  groqApiKey: process.env.GROQ_API_KEY || "",
+  claudeApiKey: process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || "",
   baseTestnetRpc: process.env.BASE_TESTNET_RPC || process.env.RPC_URL || "https://sepolia.base.org",
   agentPrivateKey: process.env.AGENT_PRIVATE_KEY || process.env.PRIVATE_KEY || "",
   escrowContractAddress: (process.env.ESCROW_CONTRACT_ADDRESS || process.env.CONTRACT_ADDRESS || "") as `0x${string}`,
   easContractAddress: (process.env.EAS_CONTRACT_ADDRESS ?? "0x4200000000000000000000000000000000000021") as `0x${string}`,
   veniceApiKey: process.env.VENICE_API_KEY ?? "",
   yieldEscrowAddress: (process.env.YIELD_ESCROW_ADDRESS || "") as `0x${string}`,
+  // x402 Payment Protocol
+  x402FacilitatorUrl: process.env.X402_FACILITATOR_URL || "https://x402.org/facilitator",
+  agentWalletAddress: process.env.AGENT_WALLET_ADDRESS || "",
+  botPublicUrl: process.env.BOT_PUBLIC_URL || `http://localhost:${process.env.PORT || 3000}`,
 };

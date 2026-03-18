@@ -1,23 +1,83 @@
-import Anthropic from "@anthropic-ai/sdk";
+/**
+ * AI Inference Layer
+ *
+ * Groq (Llama 3.3 70B)  → deal detection, delivery eval, monitor, Q&A
+ * Venice (private)       → dispute mediation (privacy-preserving)
+ * Anthropic Claude       → fallback only if Groq is unavailable
+ */
+
+import Groq from "groq-sdk";
 import { config } from "../config.js";
 import { INTENT_DETECTION_PROMPT } from "../prompts/intent-detection.js";
 import { DELIVERY_EVALUATION_PROMPT } from "../prompts/delivery-evaluation.js";
 import { DISPUTE_MEDIATION_PROMPT } from "../prompts/dispute-mediation.js";
 import { DealState, DealTerms } from "../types/deal.js";
 
-const client = new Anthropic({ apiKey: config.claudeApiKey });
+// ── Groq Client (primary inference) ──────────────────
+const groq = new Groq({ apiKey: config.groqApiKey });
 
-async function callClaude(systemPrompt: string, userMessage: string): Promise<string> {
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-6",
+const GROQ_MODEL = "llama-3.3-70b-versatile";
+
+async function callGroq(systemPrompt: string, userMessage: string): Promise<string> {
+  const response = await groq.chat.completions.create({
+    model: GROQ_MODEL,
     max_tokens: 1024,
-    system: systemPrompt,
-    messages: [{ role: "user", content: userMessage }],
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userMessage },
+    ],
+    temperature: 0.3,
   });
-  const block = response.content[0];
-  if (block.type !== "text") throw new Error("Unexpected response type");
-  return block.text;
+  const text = response.choices[0]?.message?.content;
+  if (!text) throw new Error("Empty Groq response");
+  return text;
 }
+
+// ── Venice Client (private dispute mediation) ────────
+async function callVenice(systemPrompt: string, userMessage: string): Promise<string> {
+  if (!config.veniceApiKey) {
+    console.warn("[AI] Venice API key not set, falling back to Groq for mediation");
+    return callGroq(systemPrompt, userMessage);
+  }
+
+  const res = await fetch("https://api.venice.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${config.veniceApiKey}`,
+    },
+    body: JSON.stringify({
+      model: "llama-3.3-70b",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMessage },
+      ],
+      max_tokens: 1024,
+      temperature: 0.3,
+    }),
+    signal: AbortSignal.timeout(30_000),
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => "unknown");
+    console.warn(`[AI] Venice failed (${res.status}): ${errBody}, falling back to Groq`);
+    return callGroq(systemPrompt, userMessage);
+  }
+
+  const data = (await res.json()) as any;
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) throw new Error("Empty Venice response");
+  return text;
+}
+
+// ── Shared JSON parser ───────────────────────────────
+function extractJSON(raw: string): any {
+  const jsonMatch = raw.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("No JSON object found in response");
+  return JSON.parse(jsonMatch[0]);
+}
+
+// ── Intent Detection (Groq) ─────────────────────────
 
 export interface IntentResult {
   stage: "NOISE" | "SIGNAL" | "CRYSTALLIZED";
@@ -37,15 +97,15 @@ export interface IntentResult {
 
 export async function detectIntent(messages: { user: string; text: string; timestamp?: number }[]): Promise<IntentResult> {
   const transcript = messages.map((m) => `[${new Date(m.timestamp || Date.now()).toISOString()}] ${m.user}: ${m.text}`).join("\n");
-  const raw = await callClaude(INTENT_DETECTION_PROMPT, `Conversation History:\n${transcript}`);
+  const raw = await callGroq(INTENT_DETECTION_PROMPT, `Conversation History:\n${transcript}`);
   try {
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("No JSON object found");
-    return JSON.parse(jsonMatch[0]) as IntentResult;
+    return extractJSON(raw) as IntentResult;
   } catch {
     return { stage: "NOISE", confidence: 0, terms: null, missing: [], message: null };
   }
 }
+
+// ── Delivery Evaluation (Groq) ──────────────────────
 
 interface EvalResult {
   passed: boolean;
@@ -56,15 +116,15 @@ interface EvalResult {
 
 export async function evaluateDelivery(terms: DealTerms, delivery: string): Promise<EvalResult> {
   const message = `Deal Terms:\nDeliverable: ${terms.deliverable}\nPrice: ${terms.price} ${terms.currency}\nDeadline: ${terms.deadline}\n\nSubmitted Delivery:\n${delivery}`;
-  const raw = await callClaude(DELIVERY_EVALUATION_PROMPT, message);
+  const raw = await callGroq(DELIVERY_EVALUATION_PROMPT, message);
   try {
-    const jsonMatch = raw.match(/\\{[\\s\\S]*\\}/);
-    if (!jsonMatch) throw new Error("No JSON object found");
-    return JSON.parse(jsonMatch[0]) as EvalResult;
+    return extractJSON(raw) as EvalResult;
   } catch {
     return { passed: true, confidence: 0.5, reasoning: "Could not parse evaluation. Defaulting to pass.", flags: undefined };
   }
 }
+
+// ── Dispute Mediation (Venice — private inference) ──
 
 interface MediationResult {
   ruling: "release" | "refund" | "split";
@@ -94,15 +154,16 @@ export async function mediate(
     creatorEvidence,
   ].join("\n");
 
-  const raw = await callClaude(DISPUTE_MEDIATION_PROMPT, message);
+  // Venice for private reasoning — neither party sees the logic
+  const raw = await callVenice(DISPUTE_MEDIATION_PROMPT, message);
   try {
-    const jsonMatch = raw.match(/\\{[\\s\\S]*\\}/);
-    if (!jsonMatch) throw new Error("No JSON object found");
-    return JSON.parse(jsonMatch[0]) as MediationResult;
+    return extractJSON(raw) as MediationResult;
   } catch {
     return { ruling: "split", creatorShare: 50, reasoning: "Could not parse mediation. Defaulting to 50/50 split." };
   }
 }
+
+// ── Deal Monitor Decision (Groq) ────────────────────
 
 export interface MonitorDecision {
   observation: string;
@@ -122,7 +183,7 @@ Rules:
 4. If status is "DELIVERY_SUBMITTED" or inside the dispute window and 'deliveryEvaluation.confidence' is below 0.70, and we haven't flagged it yet, decision = 'flag_delivery'.
 5. Otherwise, decision = 'none'.
 
-IMPORTANT: Only send 'remind_funding' or 'remind_delivery' or 'flag_delivery' ONCE. If you observe that the action was already taken recently, or the status progressed, output 'none'. (We assume you run every 60 seconds, so if it's over the limit, output the action).
+IMPORTANT: Only send 'remind_funding' or 'remind_delivery' or 'flag_delivery' ONCE. If you observe that the action was already taken recently, or the status progressed, output 'none'.
 
 Current Date/Time: ${new Date().toISOString()}
 Current Timestamp: ${Date.now()}
@@ -138,14 +199,13 @@ Respond with JSON only:
   "message": "If reminding or flagging, what exactly should the bot say in the chat to the parties involved? Keep it professional, and use Telegram MarkdownV2."
 }`;
 
-  const raw = await callClaude("You are a helpful JSON-only AI agent.", prompt);
+  const raw = await callGroq("You are a helpful JSON-only AI agent.", prompt);
   try {
-    const jsonMatch = raw.match(/\\{[\\s\\S]*\\}/);
-    if (!jsonMatch) throw new Error("No JSON object found");
-    return JSON.parse(jsonMatch[0]) as MonitorDecision;
+    return extractJSON(raw) as MonitorDecision;
   } catch {
     return { observation: "Failed to parse decision", decision: "none", action: "Error decoding." };
   }
 }
 
-export { callClaude };
+// Export for any modules that still need raw inference
+export { callGroq, callVenice };
