@@ -143,9 +143,12 @@ app.get("/agent_log.json", (_req, res) => {
   }
 });
 
+// Serve static files (React app)
+app.use(express.static(resolve(__dirname, "../public")));
+
 // ── x402 Payment Endpoint ────────────────────────────
 // GET /pay/:dealId — Returns 402 with payment requirements (x402 flow)
-//                    or an HTML payment page for human users
+//                    or redirects human users to the React checkout app
 app.get("/pay/:dealId", (req, res) => {
   const { dealId } = req.params;
   const payment = getPendingPayment(dealId);
@@ -170,53 +173,9 @@ app.get("/pay/:dealId", (req, res) => {
     return;
   }
 
-  // Human user: render a simple payment page
-  const deal = getDeal(dealId);
-  const dealInfo = deal ? `${deal.terms.deliverable}` : "Deal";
-
-  res.type("html").send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EQUALIZER — Fund Deal #${dealId}</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #0A0A14; color: #E8E4D9; font-family: 'IBM Plex Mono', monospace; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-    .card { background: #12121F; border: 1px solid rgba(212,160,23,0.3); border-radius: 8px; padding: 40px; max-width: 480px; width: 90%; text-align: center; }
-    .logo { font-family: 'DM Serif Display', serif; font-size: 24px; color: #C9A95A; letter-spacing: 0.15em; margin-bottom: 24px; }
-    .amount { font-size: 48px; font-weight: bold; color: #D4A017; margin: 20px 0; }
-    .label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(232,228,217,0.5); margin-bottom: 8px; }
-    .deal-info { font-size: 14px; color: rgba(232,228,217,0.7); margin-bottom: 24px; line-height: 1.6; }
-    .divider { height: 1px; background: rgba(255,255,255,0.08); margin: 24px 0; }
-    .escrow-address { font-size: 11px; background: #0A0A14; padding: 12px; border-radius: 4px; word-break: break-all; color: #4A9EFF; margin-top: 12px; }
-    .note { font-size: 11px; color: rgba(232,228,217,0.3); margin-top: 20px; line-height: 1.5; }
-    .badge { display: inline-block; padding: 4px 12px; background: rgba(212,160,23,0.1); border: 1px solid rgba(212,160,23,0.3); border-radius: 4px; font-size: 11px; color: #D4A017; margin-bottom: 16px; }
-    .network { font-size: 11px; color: rgba(232,228,217,0.4); }
-  </style>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-</head>
-<body>
-  <div class="card">
-    <div class="logo">EQUALIZER</div>
-    <div class="badge">x402 Payment</div>
-    <div class="label">Escrow Funding</div>
-    <div class="amount">$${payment.amountUsd}</div>
-    <div class="deal-info">
-      <strong>Deal #${dealId}</strong><br>
-      ${dealInfo}
-    </div>
-    <div class="divider"></div>
-    <div class="label">Send USDC to</div>
-    <div class="escrow-address">${config.escrowContractAddress || config.agentWalletAddress || "Contract address pending"}</div>
-    <div class="network">Base Sepolia · USDC · Chain ID 84532</div>
-    <div class="note">
-      Funds go directly into the escrow smart contract.<br>
-      Neither the agent nor the creator can access them until delivery is verified.
-    </div>
-  </div>
-</body>
-</html>`);
+  // Human user: redirect to the React checkout app
+  // Redirection with the dealId as a query param so the React app can pick it up
+  res.redirect(`/index.html?dealId=${dealId}`);
 });
 
 // POST /pay/:dealId — x402 payment verification + settlement

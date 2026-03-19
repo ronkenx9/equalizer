@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+@theme {
+  --color-gold: #D4A017;
+  --color-gold-muted: rgba(212, 160, 23, 0.3);
+  --color-dark: #0A0A14;
+  --color-card: #12121F;
+}
+
+:root {
+  background-color: var(--color-dark);
+  color: #E8E4D9;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+}
