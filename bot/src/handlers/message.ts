@@ -59,25 +59,39 @@ export function registerMessageHandler(bot: Bot) {
       // Check if this unblocks a confirmed deal waiting for wallet
       const active = getActiveDealsByChat(chatId);
       const waitingDeal = active.find(
-        (d) => d.status === DealStatus.Confirmed && d.terms.creatorUsername === username
+        (d) => d.status === DealStatus.Confirmed &&
+          (d.terms.creatorUsername === username || d.terms.brandUsername === username)
       );
       if (waitingDeal) {
-        const priceNum = parseFloat(waitingDeal.terms.price.replace(/[^0-9.]/g, ""));
-        const { text: paymentMsg, paymentUrl } = await getPaymentMessage(
-          waitingDeal.id,
-          priceNum,
-          waitingDeal.terms.brandUsername,
-          waitingDeal.terms.creatorUsername
-        );
-        await ctx.reply(
-          `Wallet linked\\!\n\n${paymentMsg}`,
-          {
-            parse_mode: "MarkdownV2",
-            reply_markup: {
-              inline_keyboard: [[{ text: `💳 Pay $${priceNum} USDC`, url: paymentUrl }]],
-            },
-          }
-        );
+        // We need the CREATOR's wallet to set up escrow
+        const creatorTgId = usernameToTgId.get(waitingDeal.terms.creatorUsername);
+        const creatorAddress = creatorTgId ? walletRegistry.get(creatorTgId) ?? null : null;
+
+        if (!creatorAddress) {
+          // Brand linked wallet but creator hasn't yet — nudge the creator
+          await ctx.reply(
+            `Got it\\! Still need ${waitingDeal.terms.creatorUsername} to drop their wallet address to set up the escrow\\.`,
+            { parse_mode: "MarkdownV2" }
+          );
+        } else {
+          // Creator wallet is known — send payment link
+          const priceNum = parseFloat(waitingDeal.terms.price.replace(/[^0-9.]/g, ""));
+          const { text: paymentMsg, paymentUrl } = await getPaymentMessage(
+            waitingDeal.id,
+            priceNum,
+            waitingDeal.terms.brandUsername,
+            waitingDeal.terms.creatorUsername
+          );
+          await ctx.reply(
+            `Wallet linked\\!\n\n${paymentMsg}`,
+            {
+              parse_mode: "MarkdownV2",
+              reply_markup: {
+                inline_keyboard: [[{ text: `💳 Pay $${priceNum} USDC`, url: paymentUrl }]],
+              },
+            }
+          );
+        }
       }
       return;
     }
