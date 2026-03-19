@@ -1,22 +1,205 @@
 @import "tailwindcss";
 
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap');
+
 @theme {
-  --color-gold: #D4A017;
-  --color-gold-muted: rgba(212, 160, 23, 0.3);
-  --color-dark: #0A0A14;
-  --color-card: #12121F;
+  --color-gold: #C9A55A;
+  --color-gold-bright: #E2C779;
+  --color-gold-dim: rgba(201, 165, 90, 0.15);
+  --color-surface: #0C0C14;
+  --color-card: #111119;
+  --color-card-elevated: #16161F;
+  --color-border: rgba(201, 165, 90, 0.12);
+  --color-text: #E8E4D9;
+  --color-text-muted: rgba(232, 228, 217, 0.45);
+  --color-text-dim: rgba(232, 228, 217, 0.2);
+  --color-success: #34D399;
+  --color-danger: #F87171;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 :root {
-  background-color: var(--color-dark);
-  color: #E8E4D9;
-  font-family: 'IBM Plex Mono', monospace;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font-family: 'DM Sans', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
   min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-x: hidden;
+  padding: 24px 0;
+}
+
+/* Ambient glow behind the card */
+.ambient-glow {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(
+    circle,
+    rgba(201, 165, 90, 0.06) 0%,
+    rgba(201, 165, 90, 0.02) 40%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Card glass border effect */
+.payment-card {
+  position: relative;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.payment-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(201, 165, 90, 0.3) 50%,
+    transparent 100%
+  );
+}
+
+/* Monospace for amounts and addresses */
+.mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Pulsing dot for status */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* Spin animation */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Shimmer for loading */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-card) 25%,
+    var(--color-card-elevated) 50%,
+    var(--color-card) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Scale entrance */
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.scale-in {
+  animation: scale-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Success checkmark animation */
+@keyframes check-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes circle-fill {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.check-circle {
+  animation: circle-fill 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.check-mark {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: check-draw 0.4s cubic-bezier(0.65, 0, 0.35, 1) 0.2s forwards;
+}
+
+/* Button hover glow */
+.btn-glow {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.btn-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    transparent 50%
+  );
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.btn-glow:hover::after {
+  opacity: 1;
+}
+
+.btn-glow:active {
+  transform: scale(0.98);
+}
+
+.btn-glow:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn-glow:disabled::after {
+  display: none;
 }
