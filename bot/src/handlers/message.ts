@@ -250,9 +250,9 @@ export function registerMessageHandler(bot: Bot) {
     // Prevent concurrent Claude calls per chat
     if (analyzingLocks.has(chatId)) return;
 
-    // Pre-filter with regex before calling Claude
+    // Pre-filter before calling Groq to save API costs
     const recent = buffer.slice(-5).map((m) => m.text).join(" ");
-    if (!(DEAL_KEYWORDS.test(recent) && PRICE_PATTERN.test(recent))) return;
+    if (!PRICE_PATTERN.test(recent)) return; // Wake up Groq anytime money is discussed!
 
     console.log(`[Deal Detection] Triggers matched, analyzing with Claude...`);
     analyzingLocks.add(chatId);
