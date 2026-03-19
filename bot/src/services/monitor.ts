@@ -6,6 +6,7 @@ import { easExplorerUrl, mintAttestation } from "./eas.js";
 import { parseEther } from "viem";
 import { decideDealAction } from "./claude.js";
 import { logAgentDecision } from "./agentLog.js";
+import { notifyWebhook } from "./webhook.js";
 
 // Memory block to avoid spamming the same autonomous messages every 60s
 const actionMemory = new Set<string>();
@@ -30,15 +31,17 @@ export function startDealMonitor(bot: Bot) {
                             status: DealStatus.Funded,
                             fundedAt: Date.now(),
                         });
-                        await bot.api.sendMessage(
-                            deal.chatId,
-                            `🔒 *Deal \\#${deal.id} funded onchain\\!*\n\n` +
-                            `*${onChain.amount} ETH* locked in escrow by ${deal.terms.brandUsername}\\.\n` +
-                            `Brand wallet: \`${onChain.brand}\`\n\n` +
-                            `From this point, the agent controls the funds\\. No human touches the money\\.\n\n` +
-                            `${deal.terms.creatorUsername}: deliver by the deadline, then run /submit\\.`,
-                            { parse_mode: "MarkdownV2" }
-                        );
+                        if (deal.chatId) {
+                            await bot.api.sendMessage(
+                                deal.chatId,
+                                `🔒 *Deal \\#${deal.id} funded onchain\\!*\n\n` +
+                                `*${onChain.amount} ETH* locked in escrow by ${deal.terms.brandUsername}\\.\n` +
+                                `Brand wallet: \`${onChain.brand}\`\n\n` +
+                                `From this point, the agent controls the funds\\. No human touches the money\\.\n\n` +
+                                `${deal.terms.creatorUsername}: deliver by the deadline, then run /submit\\.`,
+                                { parse_mode: "MarkdownV2" }
+                            );
+                        }
                         continue;
                     }
                 }
@@ -97,6 +100,17 @@ export function startDealMonitor(bot: Bot) {
                         });
 
                         updateDeal(deal.id, { status: DealStatus.Completed, completedAt: Date.now() });
+
+                        // Fire webhook for API-created deals
+                        notifyWebhook(deal.webhookUrl, deal.webhookSecret, {
+                            event: "deal.payment_released",
+                            deal_id: deal.id,
+                            amount: deal.terms.price,
+                            recipient: deal.partyBWallet || deal.terms.creatorUsername,
+                            tx_hash: txHash,
+                            eas_attestation: deal.easAttestationUid || null,
+                            timestamp: Date.now(),
+                        });
                     } catch (err: any) {
                         console.error(`Auto-release onchain failed for deal ${deal.id}:`, err.message);
                         // CRITICAL: Unlock memory so this can retry on the next 60s tick
@@ -126,6 +140,7 @@ export function startDealMonitor(bot: Bot) {
                     }
 
                     const txLine = txUrl ? `\n[View transaction](${txUrl})\n` : "";
+                    if (!deal.chatId) continue; // Skip Telegram notification for API-created deals
                     try {
                         await bot.api.sendMessage(
                             deal.chatId,
@@ -145,7 +160,7 @@ export function startDealMonitor(bot: Bot) {
                     logAgentDecision(deal.id, decisionNode.observation, decisionNode.decision, decisionNode.action, {
                         inference_provider: "claude",
                     });
-                    if (decisionNode.message) {
+                    if (decisionNode.message && deal.chatId) {
                         await bot.api.sendMessage(deal.chatId, decisionNode.message, { parse_mode: "MarkdownV2" }).catch(console.error);
                     }
                 }

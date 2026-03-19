@@ -7,6 +7,12 @@
 
 EQUALIZER is an AI agent that lives in Telegram group chats. It detects deals forming in natural conversation, guides the brand to lock ETH in onchain escrow, autonomously evaluates delivery using Claude, and makes binding payment decisions — releasing, refunding, or splitting funds based on its own AI judgment. No human approval needed. Silence = satisfied.
 
+## EQUALIZER as Infrastructure
+
+Any AI agent can create, fund, and settle deals through EQUALIZER via REST API, MCP tools, or x402 payment requests. The same enforcement layer humans use.
+
+See [AGENTS.md](./AGENTS.md) for the full integration guide.
+
 ## Why This Matters
 
 Every day, millions of informal deals happen in group chats: "I'll design your logo for $50," "Send me 0.1 ETH and I'll write the thread." Most of these deals rely on trust alone. EQUALIZER replaces trust with an autonomous agent that:

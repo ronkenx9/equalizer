@@ -54,4 +54,11 @@ export interface DealState {
   deliverySubmittedAt?: number;
   disputeWindowEnd?: number;
   completedAt?: number;
+  webhookUrl?: string;
+  webhookSecret?: string;
+  apiKeyId?: string;
+  partyAWallet?: string;
+  partyBWallet?: string;
+  evaluationCriteria?: string;
+  easAttestationUid?: string;
 }

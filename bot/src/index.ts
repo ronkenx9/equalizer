@@ -15,6 +15,8 @@ import {
   setPaymentCallback,
 } from "./services/x402.js";
 import { startDealWatcher, setDealFundedCallback, stopDealWatcher } from "./services/dealWatcher.js";
+import { apiRouter } from "./api/router.js";
+import { notifyWebhook } from "./services/webhook.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const AGENT_JSON_PATH = resolve(__dirname, "../../agent.json");
@@ -73,6 +75,17 @@ setPaymentCallback(async (dealId: string, txHash: string) => {
 
   updateDeal(dealId, { status: DealStatus.Funded, fundedAt: Date.now() });
 
+  // Fire webhook for API-created deals
+  notifyWebhook(deal.webhookUrl, deal.webhookSecret, {
+    event: "deal.funded",
+    deal_id: dealId,
+    amount: deal.terms.price,
+    party_a: deal.partyAWallet || deal.terms.brandUsername,
+    party_b: deal.partyBWallet || deal.terms.creatorUsername,
+    timestamp: Date.now(),
+    escrow_address: config.escrowContractAddress || "",
+  });
+
   try {
     await tgBot.api.sendMessage(
       deal.chatId,
@@ -92,7 +105,20 @@ setPaymentCallback(async (dealId: string, txHash: string) => {
 setDealFundedCallback(async (dealId: string, txHash: string, amount: string) => {
   console.log(`[Watcher] Deal ${dealId} funded onchain: ${amount} ETH (tx: ${txHash})`);
   const deal = getDeal(dealId);
-  if (!deal || !tgBot) return;
+  if (!deal) return;
+
+  // Fire webhook for API-created deals
+  notifyWebhook(deal.webhookUrl, deal.webhookSecret, {
+    event: "deal.funded",
+    deal_id: dealId,
+    amount: amount,
+    party_a: deal.partyAWallet || deal.terms.brandUsername,
+    party_b: deal.partyBWallet || deal.terms.creatorUsername,
+    timestamp: Date.now(),
+    escrow_address: config.escrowContractAddress || "",
+  });
+
+  if (!tgBot) return;
 
   try {
     const txUrl = `https://sepolia.basescan.org/tx/${txHash}`;
@@ -116,6 +142,7 @@ startDealWatcher().catch((err) => console.warn("Deal watcher failed to start:", 
 const port = process.env.PORT || 3000;
 const app = express();
 app.use(express.json());
+app.use("/api", apiRouter);
 
 // Health check
 app.get("/health", (_req, res) => {

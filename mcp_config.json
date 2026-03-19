@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "equalizer": {
+      "command": "npx",
+      "args": ["tsx", "mcp/server.ts"],
+      "description": "EQUALIZER deal enforcement — create, fund, and settle deals programmatically",
+      "env": {
+        "EQUALIZER_API_URL": "http://localhost:3000/api/v1",
+        "EQUALIZER_API_KEY": ""
+      }
+    }
+  }
+}
