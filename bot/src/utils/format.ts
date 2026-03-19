@@ -1,8 +1,9 @@
 import { DealTerms, DealState, DealStatus } from "../types/deal.js";
 import { InlineKeyboard } from "grammy";
 
-function escape(text: string): string {
-  return text.replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
+function escape(text: string | null | undefined): string {
+  if (!text) return "";
+  return String(text).replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
 }
 
 export function formatDealCard(terms: DealTerms, dealId: string): { text: string; keyboard: InlineKeyboard } {
