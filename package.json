@@ -1,5 +1,12 @@
 {
   "name": "equalizer",
   "private": true,
-  "workspaces": ["bot"]
+  "workspaces": [
+    "bot",
+    "payment-ui"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace=payment-ui && npm run build --workspace=bot",
+    "start": "npm start --workspace=bot"
+  }
 }
