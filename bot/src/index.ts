@@ -17,11 +17,15 @@ import {
 import { startDealWatcher, setDealFundedCallback, stopDealWatcher } from "./services/dealWatcher.js";
 import { apiRouter } from "./api/router.js";
 import { notifyWebhook } from "./services/webhook.js";
+import { initDelegation } from "./services/delegation.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const AGENT_JSON_PATH = resolve(__dirname, "../../agent.json");
 
 console.log("EQUALIZER starting...");
+
+// Initialise MetaMask Delegation Framework scoped permissions
+initDelegation();
 
 // Register EAS schema in background (non-blocking)
 initEAS().catch((err) => console.warn("EAS init skipped:", err.message));
