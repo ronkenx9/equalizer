@@ -47,8 +47,18 @@ function buildSummary(scope: DelegationScope): string {
 }
 
 function computeScopeHash(scope: DelegationScope): string {
-  const serialised = JSON.stringify(scope);
-  return createHash("sha256").update(serialised).digest("hex");
+  // Canonical key ordering for deterministic hashing
+  const canonical = JSON.stringify({
+    allowedFunctions: scope.allowedFunctions,
+    chainId: scope.chainId,
+    contractAddress: scope.contractAddress,
+    delegatee: scope.delegatee,
+    delegationId: scope.delegationId,
+    delegator: scope.delegator,
+    expiresAt: scope.expiresAt,
+    issuedAt: scope.issuedAt,
+  });
+  return createHash("sha256").update(canonical).digest("hex");
 }
 
 // ── Public API ────────────────────────────────────────

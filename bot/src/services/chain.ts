@@ -10,6 +10,7 @@ import {
 import { privateKeyToAccount } from "viem/accounts";
 import { baseSepolia } from "viem/chains";
 import { config } from "../config.js";
+import { verifyDelegation } from "./delegation.js";
 
 // ABI — only the functions we call (keeps bundle small)
 const ESCROW_ABI = [
@@ -156,6 +157,8 @@ export async function createDealOnChain(
 }
 
 export async function submitDeliveryOnChain(dealId: string): Promise<Hex> {
+  if (!verifyDelegation("submitDelivery"))
+    throw new Error("Delegation denied: submitDelivery not in scope");
   const wallet = getWalletClient();
   return wallet.writeContract({
     address: getContractAddress(),
@@ -166,6 +169,8 @@ export async function submitDeliveryOnChain(dealId: string): Promise<Hex> {
 }
 
 export async function releaseFunds(dealId: string): Promise<Hex> {
+  if (!verifyDelegation("release"))
+    throw new Error("Delegation denied: release not in scope");
   const wallet = getWalletClient();
   return wallet.writeContract({
     address: getContractAddress(),
@@ -176,6 +181,8 @@ export async function releaseFunds(dealId: string): Promise<Hex> {
 }
 
 export async function refundFunds(dealId: string): Promise<Hex> {
+  if (!verifyDelegation("refund"))
+    throw new Error("Delegation denied: refund not in scope");
   const wallet = getWalletClient();
   return wallet.writeContract({
     address: getContractAddress(),
@@ -186,6 +193,8 @@ export async function refundFunds(dealId: string): Promise<Hex> {
 }
 
 export async function executeRuling(dealId: string, creatorPercent: number): Promise<Hex> {
+  if (!verifyDelegation("rule"))
+    throw new Error("Delegation denied: rule not in scope");
   const wallet = getWalletClient();
   const creatorBps = BigInt(Math.round(creatorPercent * 100)); // percent to bps
   return wallet.writeContract({
@@ -197,6 +206,8 @@ export async function executeRuling(dealId: string, creatorPercent: number): Pro
 }
 
 export async function autoReleaseOnChain(dealId: string): Promise<Hex> {
+  if (!verifyDelegation("autoRelease"))
+    throw new Error("Delegation denied: autoRelease not in scope");
   const wallet = getWalletClient();
   return wallet.writeContract({
     address: getContractAddress(),

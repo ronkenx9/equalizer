@@ -4,6 +4,7 @@ import {
   getDelegationStatus,
 } from "../../services/delegation.js";
 import { resolveEnsAddress } from "../../services/ens.js";
+import { authMiddleware } from "../auth.js";
 
 const router = Router();
 
@@ -31,11 +32,11 @@ router.get("/status", (_req: Request, res: Response): void => {
 
 /**
  * POST /v1/delegation/create
- * Auth required (API key via authMiddleware in router).
+ * Auth required (API key).
  * Body: { delegator_address: string }
  * Creates a new scoped delegation from the given human address to the agent.
  */
-router.post("/create", async (req: Request, res: Response): Promise<void> => {
+router.post("/create", authMiddleware, async (req: Request, res: Response): Promise<void> => {
   const { delegator_address } = req.body as { delegator_address?: string };
 
   if (!delegator_address) {

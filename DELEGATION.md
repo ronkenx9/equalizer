@@ -33,8 +33,16 @@ Each delegation produces a `scopeHash`: a SHA-256 digest of the JSON-serialised 
 
 The delegation proof is exposed publicly at `GET /api/v1/delegation/status` so counterparties and auditors can inspect the agent's authority before a deal begins.
 
+## Runtime Enforcement
+
+Every on-chain write function in EQUALIZER's chain service checks `verifyDelegation()` before execution. If the function is not in the active delegation's `allowedFunctions`, the call throws and no transaction is submitted. This means an improperly scoped agent literally cannot call contract functions it was not delegated.
+
 ## The Mandate
 
-> "The human grants EQUALIZER exactly the authority it needs to enforce deals. Nothing more. The delegation is provable. The agent cannot exceed its mandate even if compromised."
+> "The human grants EQUALIZER exactly the authority it needs to enforce deals. Nothing more. The delegation is provable and enforced at runtime."
 
 This is not a workaround — it is the correct architecture for agentic finance. Authority should be minimal, explicit, and auditable. EQUALIZER enforces that principle at the protocol level.
+
+## Hackathon Note
+
+In the current demo deployment, the agent creates a self-delegation on startup (delegator = delegatee = agent wallet). In production, the human operator would sign the delegation externally before the agent can act. The scope verification and runtime enforcement are fully operational — the signature provenance is the hackathon simplification.
