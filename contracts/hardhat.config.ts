@@ -17,6 +17,11 @@ const config: HardhatUserConfig = {
       accounts: process.env.AGENT_PRIVATE_KEY ? [process.env.AGENT_PRIVATE_KEY] : [],
       chainId: 84532,
     },
+    statusTestnet: {
+      url: "https://testnet.rpc.status.network",
+      chainId: 1660990954,
+      accounts: [process.env.AGENT_PRIVATE_KEY ?? ""],
+    },
   },
   etherscan: {
     apiKey: process.env.BASESCAN_API_KEY ?? "",

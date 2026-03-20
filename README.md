@@ -132,6 +132,15 @@ When a brand disputes, both parties submit evidence. The agent reads everything 
 - **Tests:** 22/22 passing (Hardhat)
 - **Security:** OpenZeppelin ReentrancyGuard, immutable arbiter, access-controlled functions, max 10% fee cap hardcoded
 
+## Supported Networks
+
+| Network | Chain ID | Status | Explorer |
+|---------|----------|--------|----------|
+| Base Sepolia | 84532 | Live — `0x7a5c38be124c78da88D4C9F5ebEf72dC41869010` | [basescan.org](https://sepolia.basescan.org/address/0x7a5c38be124c78da88D4C9F5ebEf72dC41869010) |
+| Status Network Testnet | 1660990954 | Pending (RPC endpoint unavailable at deploy time) | [testnet.explorer.status.network](https://testnet.explorer.status.network) |
+
+Status L2 is a zero-gas network — all EQUALIZER transactions (createDeal, submitDelivery, autoRelease, rule) are free for participants.
+
 ### Deal Lifecycle
 
 ```
