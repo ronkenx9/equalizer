@@ -65,7 +65,7 @@ export function registerConfirmationHandler(bot: Bot) {
       }
 
       const priceNum = parseFloat(deal.terms.price.replace(/[^0-9.]/g, ""));
-      const { text: paymentMsg, paymentUrl } = await getPaymentMessage(
+      const { text: paymentMsg, paymentUrl, usdValue } = await getPaymentMessage(
         dealId,
         priceNum,
         deal.terms.currency,
@@ -73,12 +73,13 @@ export function registerConfirmationHandler(bot: Bot) {
         deal.terms.creatorUsername
       );
 
+      const btnLabel = usdValue < 1 ? `$${usdValue.toFixed(4)}` : `$${usdValue.toFixed(2)}`;
       await ctx.reply(
         `🤝 *Deal \\#${dealId} confirmed by both parties\\!*\n\n` + paymentMsg,
         {
           parse_mode: "MarkdownV2",
           reply_markup: {
-            inline_keyboard: [[{ text: `💳 Pay $${priceNum} USDC`, url: paymentUrl }]],
+            inline_keyboard: [[{ text: `💳 Pay ${btnLabel}`, url: paymentUrl }]],
           },
         }
       );

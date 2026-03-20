@@ -154,7 +154,7 @@ export async function getPaymentMessage(
   currency: string,
   brandUsername: string,
   creatorUsername: string
-): Promise<{ text: string; paymentUrl: string }> {
+): Promise<{ text: string; paymentUrl: string; usdValue: number }> {
   const { paymentUrl, usdValue, supportedTokens } =
     await createPaymentRequest(dealId, amount, currency);
 
@@ -178,5 +178,5 @@ export async function getPaymentMessage(
     `_Your funds go directly into escrow — ` +
     `neither the agent nor ${esc(creatorUsername)} can touch them until delivery\\._`;
 
-  return { text, paymentUrl };
+  return { text, paymentUrl, usdValue };
 }

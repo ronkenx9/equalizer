@@ -76,19 +76,20 @@ export function registerMessageHandler(bot: Bot) {
         } else {
           // Creator wallet is known — send payment link
           const priceNum = parseFloat(waitingDeal.terms.price.replace(/[^0-9.]/g, ""));
-          const { text: paymentMsg, paymentUrl } = await getPaymentMessage(
+          const { text: paymentMsg, paymentUrl, usdValue } = await getPaymentMessage(
             waitingDeal.id,
             priceNum,
             waitingDeal.terms.currency,
             waitingDeal.terms.brandUsername,
             waitingDeal.terms.creatorUsername
           );
+          const btnLabel = usdValue < 1 ? `$${usdValue.toFixed(4)}` : `$${usdValue.toFixed(2)}`;
           await ctx.reply(
             `Wallet linked\\!\n\n${paymentMsg}`,
             {
               parse_mode: "MarkdownV2",
               reply_markup: {
-                inline_keyboard: [[{ text: `💳 Pay $${priceNum} USDC`, url: paymentUrl }]],
+                inline_keyboard: [[{ text: `💳 Pay ${btnLabel}`, url: paymentUrl }]],
               },
             }
           );
@@ -119,17 +120,18 @@ export function registerMessageHandler(bot: Bot) {
 
         // Send the x402 payment link + ETH deposit instructions
         const priceNum = parseFloat(deal.terms.price.replace(/[^0-9.]/g, ""));
-        const { text: paymentMsg, paymentUrl } = await getPaymentMessage(
+        const { text: paymentMsg, paymentUrl, usdValue: usdVal } = await getPaymentMessage(
           deal.id,
           priceNum,
           deal.terms.currency,
           deal.terms.brandUsername,
           deal.terms.creatorUsername
         );
+        const fundBtnLabel = usdVal < 1 ? `$${usdVal.toFixed(4)}` : `$${usdVal.toFixed(2)}`;
         await ctx.reply(paymentMsg, {
           parse_mode: "MarkdownV2",
           reply_markup: {
-            inline_keyboard: [[{ text: `💳 Pay $${priceNum} USDC`, url: paymentUrl }]],
+            inline_keyboard: [[{ text: `💳 Pay ${fundBtnLabel}`, url: paymentUrl }]],
           },
         });
 
