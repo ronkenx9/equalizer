@@ -22,6 +22,29 @@ export interface DealTerms {
   creatorUsername: string;
 }
 
+export interface EvaluationCriterion {
+  id: string;
+  description: string;
+  check_type: "keyword_presence" | "hashtag_presence" | "mention_presence" | "url_accessible" | "min_count" | "deadline_check" | "format_check" | "structural_check" | "content_match";
+  required_value: string;
+  required: boolean;
+}
+
+export interface ExtractedCriteria {
+  type: "social_post" | "video_content" | "written_content" | "code" | "design" | "stream" | "other";
+  platform: string | null;
+  criteria: EvaluationCriterion[];
+  ambiguities: string[] | null;
+}
+
+export interface CriterionResult {
+  criterion_id: string;
+  description: string;
+  result: "PASS" | "FAIL" | "PARTIAL";
+  found_value?: string;
+  reasoning?: string;
+}
+
 export interface DealEvidence {
   brandEvidence?: string;
   creatorEvidence?: string;
@@ -60,5 +83,7 @@ export interface DealState {
   partyAWallet?: string;
   partyBWallet?: string;
   evaluationCriteria?: string;
+  extractedCriteria?: ExtractedCriteria;
+  criteriaResults?: CriterionResult[];
   easAttestationUid?: string;
 }

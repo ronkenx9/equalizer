@@ -1,11 +1,11 @@
 import { Bot, Context } from "grammy";
-import { detectIntent } from "../services/claude.js";
+import { detectIntent, extractCriteria } from "../services/claude.js";
 import { createDeal, getActiveDealsByChat, updateDeal, getDeal } from "../services/store.js";
 import { DealStatus } from "../types/deal.js";
 import { formatDealCard } from "../utils/format.js";
 import { walletRegistry, usernameToTgId } from "../commands/wallet.js";
 import { getDepositInstructions, explorerTxUrl, toDealIdBytes32, submitDeliveryOnChain } from "../services/chain.js";
-import { evaluateDelivery } from "../services/claude.js";
+import { evaluateDelivery, evaluateDeliveryWithCriteria } from "../services/claude.js";
 import { getDisputeWindowEnd } from "../utils/timer.js";
 import { type Hex } from "viem";
 import { usdToEth } from "../services/price.js";
@@ -168,10 +168,43 @@ export function registerMessageHandler(bot: Bot) {
         // Use the message text as the delivery description
         const delivery = text;
 
-        await ctx.reply("📦 Delivery received\\. Evaluating against deal terms\\.\\.\\.", { parse_mode: "MarkdownV2" });
+        await ctx.reply(
+          deal.extractedCriteria
+            ? "📦 Delivery received\\. Evaluating against locked criteria\\.\\.\\."
+            : "📦 Delivery received\\. Evaluating against deal terms\\.\\.\\.",
+          { parse_mode: "MarkdownV2" }
+        );
 
         try {
-          const evaluation = await evaluateDelivery(deal.terms, delivery);
+          // Use criteria-based evaluation if criteria were extracted, otherwise fallback
+          let evaluation: { passed: boolean; confidence: number; reasoning: string; flags?: string[] };
+          let criteriaResultsText = "";
+
+          if (deal.extractedCriteria && deal.extractedCriteria.criteria.length > 0) {
+            const criteriaEval = await evaluateDeliveryWithCriteria(
+              deal.extractedCriteria, delivery, deal.terms
+            );
+            evaluation = {
+              passed: criteriaEval.overall === "PASS",
+              confidence: criteriaEval.confidence / 100,
+              reasoning: criteriaEval.summary,
+              flags: criteriaEval.results
+                .filter((r) => r.result !== "PASS")
+                .map((r) => `${r.description}: ${r.reasoning ?? r.result}`),
+            };
+            // Store per-criterion results
+            updateDeal(deal.id, { criteriaResults: criteriaEval.results });
+
+            // Build transparent results display
+            const resultLines = criteriaEval.results.map((r) => {
+              const icon = r.result === "PASS" ? "✅" : r.result === "FAIL" ? "❌" : "⚠️";
+              return `${icon} ${escapeMarkdown(r.description)}`;
+            });
+            criteriaResultsText = `\n\n📋 *Criteria Results:*\n${resultLines.join("\n")}`;
+          } else {
+            evaluation = await evaluateDelivery(deal.terms, delivery);
+          }
+
           const windowEnd = getDisputeWindowEnd(deal.terms.disputeWindowSeconds);
 
           // Submit on-chain
@@ -202,7 +235,8 @@ export function registerMessageHandler(bot: Bot) {
           if (evaluation.passed) {
             await ctx.reply(
               `✅ *Delivery evaluated — PASSED*\n\n` +
-              `_${escapeMarkdown(evaluation.reasoning)}_\n\n` +
+              `_${escapeMarkdown(evaluation.reasoning)}_` +
+              criteriaResultsText + `\n\n` +
               txLine +
               `⏰ *${windowLabel} dispute window started\\.* ${deal.terms.brandUsername}: review the delivery\\. ` +
               `If everything looks good, stay silent and payment releases automatically\\. ` +
@@ -213,7 +247,8 @@ export function registerMessageHandler(bot: Bot) {
             const flags = evaluation.flags?.map((f) => `• ${escapeMarkdown(f)}`).join("\n") ?? "";
             await ctx.reply(
               `⚠️ *Delivery evaluation — FLAGGED*\n\n` +
-              `_${escapeMarkdown(evaluation.reasoning)}_\n\n` +
+              `_${escapeMarkdown(evaluation.reasoning)}_` +
+              criteriaResultsText + `\n\n` +
               `Issues:\n${flags}\n\n` +
               txLine +
               `⏰ *${windowLabel} dispute window started\\.*\n` +
@@ -295,10 +330,34 @@ export function registerMessageHandler(bot: Bot) {
         if (!result.terms || result.confidence < 85) return;
 
         const deal = createDeal(chatId, result.terms);
+
+        // Extract structured evaluation criteria
+        let criteriaText = "";
+        try {
+          const extracted = await extractCriteria(result.terms);
+          updateDeal(deal.id, { extractedCriteria: extracted });
+          console.log(`[Criteria] Extracted ${extracted.criteria.length} criteria for deal ${deal.id}`);
+
+          if (extracted.criteria.length > 0) {
+            const criteriaLines = extracted.criteria.map(
+              (c) => `  → ${escapeMarkdown(c.description)}`
+            );
+            criteriaText =
+              `\n\n🔍 *I'll evaluate this delivery against:*\n` +
+              criteriaLines.join("\n");
+
+            if (extracted.ambiguities && extracted.ambiguities.length > 0) {
+              criteriaText += `\n\n⚠️ _Note: ${escapeMarkdown(extracted.ambiguities[0])}_`;
+            }
+          }
+        } catch (err) {
+          console.error("[Criteria] Extraction failed:", err);
+        }
+
         const { text: cardText, keyboard } = formatDealCard(deal.terms, deal.id);
 
         await ctx.reply(
-          `👀 *I detected a deal forming\\!*\n\n${cardText}\n\n_Confidence: ${Math.round(result.confidence)}%_`,
+          `👀 *I detected a deal forming\\!*\n\n${cardText}${criteriaText}\n\n_Confidence: ${Math.round(result.confidence)}%_`,
           { parse_mode: "MarkdownV2", reply_markup: keyboard }
         );
 

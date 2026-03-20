@@ -11,7 +11,8 @@ import { config } from "../config.js";
 import { INTENT_DETECTION_PROMPT } from "../prompts/intent-detection.js";
 import { DELIVERY_EVALUATION_PROMPT } from "../prompts/delivery-evaluation.js";
 import { DISPUTE_MEDIATION_PROMPT } from "../prompts/dispute-mediation.js";
-import { DealState, DealTerms } from "../types/deal.js";
+import { CRITERIA_EXTRACTION_PROMPT } from "../prompts/criteria-extraction.js";
+import { DealState, DealTerms, ExtractedCriteria, CriterionResult } from "../types/deal.js";
 
 // ── Groq Client (primary inference) ──────────────────
 const groq = new Groq({ apiKey: config.groqApiKey });
@@ -204,6 +205,116 @@ Respond with JSON only:
     return extractJSON(raw) as MonitorDecision;
   } catch {
     return { observation: "Failed to parse decision", decision: "none", action: "Error decoding." };
+  }
+}
+
+// ── Criteria Extraction (Groq) ──────────────────────
+export async function extractCriteria(terms: DealTerms): Promise<ExtractedCriteria> {
+  const message = [
+    `Deal Description:`,
+    `Deliverable: ${terms.deliverable}`,
+    `Price: ${terms.price} ${terms.currency}`,
+    `Deadline: ${terms.deadline}`,
+    `Brand: ${terms.brandUsername}`,
+    `Creator: ${terms.creatorUsername}`,
+  ].join("\n");
+
+  const raw = await callGroq(CRITERIA_EXTRACTION_PROMPT, message);
+  try {
+    return extractJSON(raw) as ExtractedCriteria;
+  } catch {
+    return {
+      type: "other",
+      platform: null,
+      criteria: [
+        {
+          id: "c1",
+          description: `Deliver: ${terms.deliverable}`,
+          check_type: "content_match",
+          required_value: terms.deliverable,
+          required: true,
+        },
+      ],
+      ambiguities: ["Could not extract structured criteria — using deliverable description as single criterion"],
+    };
+  }
+}
+
+// ── Criteria-Based Delivery Evaluation (Groq) ───────
+const CRITERIA_EVAL_PROMPT = `You are a delivery evaluator. You are given locked evaluation criteria and a submitted delivery. Check each criterion individually.
+
+RULES:
+- Only evaluate against the provided criteria. Do NOT add your own standards.
+- Each criterion gets PASS, FAIL, or PARTIAL.
+- PASS: criterion is clearly met
+- FAIL: criterion is clearly not met
+- PARTIAL: criterion is partially met or ambiguous
+- Be specific about what was found vs what was required.
+- Do NOT judge quality, tone, or creativity unless a criterion explicitly requires it.
+- overall is PASS only if ALL required criteria pass.
+
+Respond with valid JSON only:
+{
+  "overall": "PASS" | "FAIL" | "PARTIAL",
+  "confidence": number (0-100),
+  "results": [
+    {
+      "criterion_id": "c1",
+      "description": "what was checked",
+      "result": "PASS" | "FAIL" | "PARTIAL",
+      "found_value": "what was actually found in the delivery",
+      "reasoning": "1 sentence explaining the result"
+    }
+  ],
+  "summary": "1-2 sentence plain English summary of the evaluation"
+}`;
+
+export async function evaluateDeliveryWithCriteria(
+  criteria: ExtractedCriteria,
+  delivery: string,
+  terms: DealTerms
+): Promise<{
+  overall: "PASS" | "FAIL" | "PARTIAL";
+  confidence: number;
+  results: CriterionResult[];
+  summary: string;
+}> {
+  const message = [
+    `Deliverable Type: ${criteria.type}`,
+    criteria.platform ? `Platform: ${criteria.platform}` : "",
+    ``,
+    `Locked Evaluation Criteria:`,
+    ...criteria.criteria.map(
+      (c) =>
+        `- [${c.id}] ${c.description} (check: ${c.check_type}, required: ${c.required_value}, mandatory: ${c.required})`
+    ),
+    ``,
+    `Deal Terms:`,
+    `Deliverable: ${terms.deliverable}`,
+    `Deadline: ${terms.deadline}`,
+    ``,
+    `Submitted Delivery:`,
+    delivery,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const raw = await callGroq(CRITERIA_EVAL_PROMPT, message);
+  try {
+    const parsed = extractJSON(raw);
+    return {
+      overall: parsed.overall ?? "PARTIAL",
+      confidence: parsed.confidence ?? 50,
+      results: parsed.results ?? [],
+      summary: parsed.summary ?? "Evaluation completed.",
+    };
+  } catch {
+    return {
+      overall: "PARTIAL",
+      confidence: 50,
+      results: [],
+      summary: "Could not parse evaluation. Falling back to manual review.",
+    };
   }
 }
 
