@@ -60,12 +60,13 @@ export async function resolveEnsName(address: string): Promise<string | null> {
  * Returns null if the name does not resolve or if lookup fails.
  */
 export async function resolveEnsAddress(name: string): Promise<string | null> {
-  const key = `addr:${name.toLowerCase()}`;
+  const normalizedName = name.toLowerCase();
+  const key = `addr:${normalizedName}`;
   const cached = getCached(key);
   if (cached !== undefined) return cached;
 
   try {
-    const address = await getEnsAddress(ensClient, { name });
+    const address = await getEnsAddress(ensClient, { name: normalizedName });
     const result = address ?? null;
     setCached(key, result);
     return result;

@@ -6,7 +6,14 @@ function escape(text: string | null | undefined): string {
   return String(text).replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
 }
 
-export function formatDealCard(terms: DealTerms, dealId: string): { text: string; keyboard: InlineKeyboard } {
+export function formatDealCard(
+  terms: DealTerms,
+  dealId: string,
+  ensNames: { brand?: string | null; creator?: string | null } = {}
+): { text: string; keyboard: InlineKeyboard } {
+  const brandEns = ensNames.brand ? ` \\(${escape(ensNames.brand)}\\)` : "";
+  const creatorEns = ensNames.creator ? ` \\(${escape(ensNames.creator)}\\)` : "";
+
   const text = [
     `*EQUALIZER Deal \\#${escape(dealId)}*`,
     ``,
@@ -14,8 +21,8 @@ export function formatDealCard(terms: DealTerms, dealId: string): { text: string
     `💰 *Price:* ${escape(terms.price)} ${escape(terms.currency)}`,
     `📅 *Deadline:* ${escape(terms.deadline)}`,
     ``,
-    `🏢 *Brand:* ${escape(terms.brandUsername)}`,
-    `🎨 *Creator:* ${escape(terms.creatorUsername)}`,
+    `🏢 *Brand:* ${escape(terms.brandUsername)}${brandEns}`,
+    `🎨 *Creator:* ${escape(terms.creatorUsername)}${creatorEns}`,
     ``,
     `_Both parties must confirm to lock this deal\\._`,
   ].join("\n");
@@ -27,7 +34,10 @@ export function formatDealCard(terms: DealTerms, dealId: string): { text: string
   return { text, keyboard };
 }
 
-export function formatDealStatus(deal: DealState): string {
+export function formatDealStatus(
+  deal: DealState,
+  ensNames: { brand?: string | null; creator?: string | null } = {}
+): string {
   const statusEmoji: Record<DealStatus, string> = {
     [DealStatus.Pending]: "⏳",
     [DealStatus.BrandConfirmed]: "✅",
@@ -42,11 +52,14 @@ export function formatDealStatus(deal: DealState): string {
     [DealStatus.Refunded]: "↩️",
   };
 
+  const brandEns = ensNames.brand ? ` (${ensNames.brand})` : "";
+  const creatorEns = ensNames.creator ? ` (${ensNames.creator})` : "";
+
   const lines = [
     `*Deal \\#${deal.id}* ${statusEmoji[deal.status]}`,
     `Status: ${deal.status.replace(/_/g, " ")}`,
-    `Brand: ${deal.terms.brandUsername}`,
-    `Creator: ${deal.terms.creatorUsername}`,
+    `Brand: ${deal.terms.brandUsername}${brandEns}`,
+    `Creator: ${deal.terms.creatorUsername}${creatorEns}`,
     `Price: ${deal.terms.price} ${deal.terms.currency}`,
   ];
 

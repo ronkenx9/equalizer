@@ -12,7 +12,7 @@ export function registerStatus(bot: Bot) {
       return;
     }
 
-    const lines = active.map(formatDealStatus);
+    const lines = active.map((deal) => formatDealStatus(deal));
     await ctx.reply(lines.join("\n\n"), { parse_mode: "MarkdownV2" });
   });
 }

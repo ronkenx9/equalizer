@@ -52,6 +52,16 @@ router.post("/create", async (req: Request, res: Response): Promise<void> => {
     partyB = resolved;
   }
 
+  if (!/^0x[0-9a-fA-F]{40}$/.test(partyA)) {
+    res.status(400).json({ error: "Invalid address for party_a" });
+    return;
+  }
+
+  if (!/^0x[0-9a-fA-F]{40}$/.test(partyB)) {
+    res.status(400).json({ error: "Invalid address for party_b" });
+    return;
+  }
+
   const apiKey = req.headers["x-equalizer-api-key"] as string;
   if (!incrementDealCount(apiKey)) {
     res.status(403).json({ error: "Monthly deal limit reached (100 deals/month on free tier)" });
