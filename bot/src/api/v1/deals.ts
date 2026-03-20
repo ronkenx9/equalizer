@@ -8,6 +8,7 @@ import { createPaymentRequest } from "../../services/x402.js";
 import { notifyWebhook } from "../../services/webhook.js";
 import { getDisputeWindowEnd } from "../../utils/timer.js";
 import { config } from "../../config.js";
+import { resolveEnsAddress } from "../../services/ens.js";
 import type {
   CreateDealRequest,
   CreateDealResponse,
@@ -29,6 +30,28 @@ router.post("/create", async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
+  // Resolve ENS names to addresses if provided
+  let partyA = body.party_a;
+  let partyB = body.party_b;
+
+  if (partyA.includes(".")) {
+    const resolved = await resolveEnsAddress(partyA);
+    if (!resolved) {
+      res.status(400).json({ error: `Could not resolve ENS name: ${partyA}` });
+      return;
+    }
+    partyA = resolved;
+  }
+
+  if (partyB.includes(".")) {
+    const resolved = await resolveEnsAddress(partyB);
+    if (!resolved) {
+      res.status(400).json({ error: `Could not resolve ENS name: ${partyB}` });
+      return;
+    }
+    partyB = resolved;
+  }
+
   const apiKey = req.headers["x-equalizer-api-key"] as string;
   if (!incrementDealCount(apiKey)) {
     res.status(403).json({ error: "Monthly deal limit reached (100 deals/month on free tier)" });
@@ -44,16 +67,16 @@ router.post("/create", async (req: Request, res: Response): Promise<void> => {
     currency: "USDC",
     deadline: deadlineDate.toISOString(),
     disputeWindowSeconds: 7200,
-    brandUsername: body.party_a,
-    creatorUsername: body.party_b,
+    brandUsername: partyA,
+    creatorUsername: partyB,
   });
 
   updateDeal(deal.id, {
     status: DealStatus.Confirmed,
     confirmedAt: Date.now(),
     apiKeyId,
-    partyAWallet: body.party_a,
-    partyBWallet: body.party_b,
+    partyAWallet: partyA,
+    partyBWallet: partyB,
     evaluationCriteria: body.evaluation_criteria,
     webhookUrl: body.webhook_url,
     webhookSecret,

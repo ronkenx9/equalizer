@@ -28,4 +28,5 @@ export const config = {
   x402FacilitatorUrl: process.env.X402_FACILITATOR_URL || "https://x402.org/facilitator",
   agentWalletAddress: process.env.AGENT_WALLET_ADDRESS || "",
   botPublicUrl: (process.env.PUBLIC_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, ""),
+  ensRpcUrl: process.env.ENS_RPC_URL ?? "https://eth.llamarpc.com",
 };
