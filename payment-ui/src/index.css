@@ -203,3 +203,54 @@ body {
 .btn-glow:disabled::after {
   display: none;
 }
+
+/* Token selector */
+.token-selector {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.token-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+
+.token-pill:hover {
+  border-color: var(--color-gold);
+  color: var(--color-text);
+}
+
+.token-pill-active {
+  background: var(--color-gold);
+  border-color: var(--color-gold);
+  color: var(--color-surface);
+}
+
+.token-pill-active:hover {
+  color: var(--color-surface);
+}
+
+.token-pill-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.token-pill-symbol {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}

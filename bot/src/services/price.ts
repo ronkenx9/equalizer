@@ -3,6 +3,8 @@
  * Caches price for 60 seconds to avoid rate limits.
  */
 
+import { SUPPORTED_TOKENS } from "./tokens.js";
+
 let cachedPrice: { ethUsd: number; fetchedAt: number } | null = null;
 const CACHE_TTL = 60_000; // 1 minute
 
@@ -52,4 +54,53 @@ export async function usdToEth(usdAmount: number): Promise<{ ethAmount: string; 
     ethAmount: ethAmount.toFixed(6),
     ethPrice,
   };
+}
+
+/**
+ * Convert a deal amount (in any currency) to USD value,
+ * then compute the equivalent amount for each supported token.
+ */
+export async function convertToTokenAmounts(
+  amount: number,
+  currency: string
+): Promise<{
+  usdValue: number;
+  tokens: { symbol: string; amount: number; rawAmount: string }[];
+}> {
+  const ethPrice = await getEthUsdPrice();
+
+  // Step 1: Convert deal amount to USD
+  let usdValue: number;
+  const cur = currency.toUpperCase().replace("$", "USD");
+
+  if (cur === "ETH" || cur === "WETH") {
+    usdValue = amount * ethPrice;
+  } else if (["USD", "USDC", "USDT", "DAI"].includes(cur)) {
+    usdValue = amount;
+  } else {
+    // Unknown currency — treat as USD
+    usdValue = amount;
+  }
+
+  // Step 2: For each supported token, calculate the equivalent amount
+  const tokens = SUPPORTED_TOKENS.map((token) => {
+    let tokenAmount: number;
+
+    if (token.coingeckoId === "ethereum") {
+      // ETH or WETH — divide USD by ETH price
+      tokenAmount = usdValue / ethPrice;
+    } else {
+      // Stablecoin — 1:1 with USD
+      tokenAmount = usdValue;
+    }
+
+    // Calculate raw amount with proper decimals
+    const rawAmount = BigInt(
+      Math.round(tokenAmount * 10 ** token.decimals)
+    ).toString();
+
+    return { symbol: token.symbol, amount: tokenAmount, rawAmount };
+  });
+
+  return { usdValue, tokens };
 }

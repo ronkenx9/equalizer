@@ -79,6 +79,7 @@ export function registerMessageHandler(bot: Bot) {
           const { text: paymentMsg, paymentUrl } = await getPaymentMessage(
             waitingDeal.id,
             priceNum,
+            waitingDeal.terms.currency,
             waitingDeal.terms.brandUsername,
             waitingDeal.terms.creatorUsername
           );
@@ -121,6 +122,7 @@ export function registerMessageHandler(bot: Bot) {
         const { text: paymentMsg, paymentUrl } = await getPaymentMessage(
           deal.id,
           priceNum,
+          deal.terms.currency,
           deal.terms.brandUsername,
           deal.terms.creatorUsername
         );

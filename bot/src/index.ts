@@ -195,7 +195,7 @@ app.get("/pay/:dealId", (req, res) => {
     const requirements = getPaymentRequirements(dealId);
     res.status(402).json({
       paymentRequirements: [requirements],
-      message: `Payment required: $${payment.amountUsd} USDC to fund Deal #${dealId}`,
+      message: `Payment required: $${payment.usdValue.toFixed(2)} to fund Deal #${dealId}`,
     });
     return;
   }

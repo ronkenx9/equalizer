@@ -3,6 +3,7 @@ export interface CreateDealRequest {
   party_b: string;
   deliverable: string;
   amount: string;
+  currency?: string;
   deadline_seconds: number;
   evaluation_criteria: string;
   webhook_url?: string;

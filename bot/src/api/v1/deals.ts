@@ -20,7 +20,7 @@ import type {
 const router = Router();
 
 // POST /api/v1/deals/create
-router.post("/create", (req: Request, res: Response): void => {
+router.post("/create", async (req: Request, res: Response): Promise<void> => {
   const body = req.body as CreateDealRequest;
   const apiKeyId = (req as any).apiKeyId;
 
@@ -60,7 +60,8 @@ router.post("/create", (req: Request, res: Response): void => {
   });
 
   const amountUsd = parseFloat(body.amount);
-  createPaymentRequest(deal.id, amountUsd);
+  const currency = body.currency || "USDC";
+  await createPaymentRequest(deal.id, amountUsd, currency);
 
   const response: CreateDealResponse = {
     deal_id: deal.id,

@@ -68,6 +68,7 @@ export function registerConfirmationHandler(bot: Bot) {
       const { text: paymentMsg, paymentUrl } = await getPaymentMessage(
         dealId,
         priceNum,
+        deal.terms.currency,
         deal.terms.brandUsername,
         deal.terms.creatorUsername
       );

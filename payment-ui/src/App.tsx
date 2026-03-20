@@ -1,10 +1,16 @@
 import { useState, useEffect } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId } from 'wagmi';
+import {
+  useAccount,
+  useWriteContract,
+  useWaitForTransactionReceipt,
+  useChainId,
+  useSendTransaction,
+} from 'wagmi';
 import { type Hex } from 'viem';
 import { baseSepolia } from 'wagmi/chains';
 
-const USDC_ABI = [
+const ERC20_ABI = [
   {
     name: 'transfer',
     type: 'function',
@@ -17,7 +23,15 @@ const USDC_ABI = [
   },
 ] as const;
 
-const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
+interface TokenAmount {
+  symbol: string;
+  name: string;
+  address: string | null;
+  decimals: number;
+  amount: number;
+  rawAmount: string;
+  icon: string;
+}
 
 function SuccessCheck() {
   return (
@@ -40,12 +54,7 @@ function Spinner() {
   return (
     <svg className="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" opacity="0.2" />
-      <path
-        d="M12 2a10 10 0 0 1 10 10"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-      />
+      <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
     </svg>
   );
 }
@@ -61,17 +70,63 @@ function ScalesIcon() {
   );
 }
 
+function formatAmount(amount: number, symbol: string): string {
+  if (['ETH', 'WETH', 'DAI'].includes(symbol)) {
+    // Show up to 6 decimals, trim trailing zeros
+    return amount.toFixed(6).replace(/\.?0+$/, '') || '0';
+  }
+  return amount.toFixed(2);
+}
+
 function App() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
-  const { data: hash, writeContract, isPending: isWritePending, error: writeError } = useWriteContract();
-  const { isLoading: isTxConfirming, isSuccess: isTxConfirmed } = useWaitForTransactionReceipt({ hash });
+
+  // ERC20 transfer
+  const {
+    data: erc20Hash,
+    writeContract,
+    isPending: isErc20Pending,
+    error: erc20Error,
+  } = useWriteContract();
+
+  // Native ETH transfer
+  const {
+    data: ethHash,
+    sendTransaction,
+    isPending: isEthPending,
+    error: ethError,
+  } = useSendTransaction();
+
+  // The active tx hash (ERC20 or native)
+  const txHash = erc20Hash || ethHash;
+  const writeError = erc20Error || ethError;
+  const isWritePending = isErc20Pending || isEthPending;
+
+  const { isLoading: isTxConfirming, isSuccess: isTxConfirmed } =
+    useWaitForTransactionReceipt({ hash: txHash });
 
   const [dealId, setDealId] = useState<string | null>(null);
   const [dealData, setDealData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [settled, setSettled] = useState(false);
+  const [selectedToken, setSelectedToken] = useState<string>('USDC');
+
+  // Parse supported tokens from deal data
+  const supportedTokens: TokenAmount[] = dealData?.extra?.supportedTokens ?? [];
+  const usdValue: number = dealData?.extra?.usdValue ?? 0;
+  const originalCurrency: string = dealData?.extra?.originalCurrency ?? 'USD';
+  const originalAmount: number = dealData?.extra?.originalAmount ?? 0;
+
+  // Get the currently selected token info
+  const activeToken = supportedTokens.find((t) => t.symbol === selectedToken) ??
+    supportedTokens[0] ?? null;
+
+  // Fallback for old backend (no supportedTokens)
+  const legacyAmount = dealData ? parseFloat(dealData.maxAmountRequired) / 1e6 : 0;
+  const displayAmount = activeToken ? formatAmount(activeToken.amount, activeToken.symbol) : legacyAmount.toFixed(2);
+  const displaySymbol = activeToken?.symbol ?? 'USDC';
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -83,46 +138,58 @@ function App() {
     }
     setDealId(id);
 
-    fetch(`/pay/${id}`, { headers: { 'Accept': 'application/json' } })
-      .then(res => {
+    fetch(`/pay/${id}`, { headers: { Accept: 'application/json' } })
+      .then((res) => {
         if (res.status === 402) return res.json();
         throw new Error('Deal not found or already funded');
       })
-      .then(data => {
+      .then((data) => {
         const requirements = data.paymentRequirements?.[0];
         if (!requirements) throw new Error('Missing payment details');
         setDealData(requirements);
         setLoading(false);
       })
-      .catch(err => {
+      .catch((err) => {
         setError(err.message);
         setLoading(false);
       });
   }, []);
 
+  // Settlement notification
   useEffect(() => {
     if (isTxConfirmed && dealId && !settled) {
       fetch(`/pay/${dealId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ txHash: hash, payload: 'x402_web_checkout' })
+        body: JSON.stringify({ txHash, payload: 'x402_web_checkout' }),
       })
         .then(() => setSettled(true))
         .catch(console.error);
     }
-  }, [isTxConfirmed, dealId, hash, settled]);
+  }, [isTxConfirmed, dealId, txHash, settled]);
 
   const handlePay = () => {
     if (!dealData || !dealId) return;
-    writeContract({
-      address: USDC_ADDRESS,
-      abi: USDC_ABI,
-      functionName: 'transfer',
-      args: [dealData.payTo as Hex, BigInt(dealData.maxAmountRequired)],
-    });
+
+    if (activeToken && activeToken.address === null) {
+      // Native ETH — use sendTransaction
+      sendTransaction({
+        to: dealData.payTo as Hex,
+        value: BigInt(activeToken.rawAmount),
+      });
+    } else {
+      // ERC20 — use writeContract with transfer()
+      const tokenAddress = activeToken?.address ?? dealData.asset;
+      const rawAmount = activeToken?.rawAmount ?? dealData.maxAmountRequired;
+      writeContract({
+        address: tokenAddress as Hex,
+        abi: ERC20_ABI,
+        functionName: 'transfer',
+        args: [dealData.payTo as Hex, BigInt(rawAmount)],
+      });
+    }
   };
 
-  const amount = dealData ? (parseFloat(dealData.maxAmountRequired) / 1e6) : 0;
   const isCorrectChain = chainId === baseSepolia.id;
 
   // --- Loading state ---
@@ -181,11 +248,9 @@ function App() {
           </div>
 
           <p className="text-[var(--color-success)] text-lg font-semibold mb-1">
-            ${amount.toLocaleString()} USDC Locked
+            {displayAmount} {displaySymbol} Locked
           </p>
-          <p className="text-[var(--color-text-muted)] text-xs mb-6">
-            Escrow funded. Work can begin.
-          </p>
+          <p className="text-[var(--color-text-muted)] text-xs mb-6">Escrow funded. Work can begin.</p>
 
           <div className="bg-[var(--color-card-elevated)] rounded-lg p-4 mb-4">
             <div className="flex justify-between items-center text-xs mb-2">
@@ -195,12 +260,12 @@ function App() {
             <div className="flex justify-between items-center text-xs">
               <span className="text-[var(--color-text-dim)]">Transaction</span>
               <a
-                href={`https://sepolia.basescan.org/tx/${hash}`}
+                href={`https://sepolia.basescan.org/tx/${txHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mono text-[var(--color-gold)] hover:text-[var(--color-gold-bright)] transition-colors text-[11px]"
               >
-                {hash?.slice(0, 10)}...{hash?.slice(-6)} ↗
+                {txHash?.slice(0, 10)}...{txHash?.slice(-6)} ↗
               </a>
             </div>
           </div>
@@ -232,18 +297,50 @@ function App() {
           </div>
 
           {/* Amount */}
-          <div className="text-center mb-6">
+          <div className="text-center mb-4">
             <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-dim)] mb-3">
               Escrow Payment
             </p>
-            <div className="flex items-baseline justify-center gap-1">
-              <span className="text-[var(--color-text-muted)] text-xl">$</span>
-              <span className="mono text-5xl font-bold text-[var(--color-text)] leading-none">
-                {amount.toLocaleString()}
+            <div className="flex items-baseline justify-center gap-2">
+              <span className="mono text-4xl font-bold text-[var(--color-text)] leading-none">
+                {displayAmount}
+              </span>
+              <span className="text-[var(--color-text-muted)] text-lg font-medium">
+                {displaySymbol}
               </span>
             </div>
-            <p className="mono text-[11px] text-[var(--color-text-dim)] mt-2">USDC on Base Sepolia</p>
+            {usdValue > 0 && displaySymbol !== 'USDC' && displaySymbol !== 'USDT' && displaySymbol !== 'DAI' && (
+              <p className="mono text-[11px] text-[var(--color-text-dim)] mt-2">
+                ≈ ${usdValue.toFixed(2)} USD
+              </p>
+            )}
+            {originalCurrency.toUpperCase() !== displaySymbol && (
+              <p className="mono text-[11px] text-[var(--color-text-dim)] mt-1">
+                Deal price: {originalAmount} {originalCurrency}
+              </p>
+            )}
           </div>
+
+          {/* Token Selector */}
+          {supportedTokens.length > 1 && (
+            <div className="mb-6">
+              <p className="text-[9px] uppercase tracking-[0.15em] text-[var(--color-text-dim)] mb-2 text-center">
+                Pay with
+              </p>
+              <div className="token-selector">
+                {supportedTokens.map((token) => (
+                  <button
+                    key={token.symbol}
+                    onClick={() => setSelectedToken(token.symbol)}
+                    className={`token-pill ${selectedToken === token.symbol ? 'token-pill-active' : ''}`}
+                  >
+                    <span className="token-pill-icon">{token.icon}</span>
+                    <span className="token-pill-symbol">{token.symbol}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Deal info */}
@@ -299,7 +396,7 @@ function App() {
                     ? 'Confirming transaction...'
                     : isWritePending
                       ? 'Approve in wallet...'
-                      : `Pay $${amount.toLocaleString()} USDC`}
+                      : `Pay ${displayAmount} ${displaySymbol}`}
                 </span>
               </button>
 
@@ -344,11 +441,26 @@ function App() {
             </summary>
             <div className="mt-3 space-y-2">
               <div className="bg-[var(--color-card-elevated)] rounded-lg p-3">
-                <p className="text-[9px] uppercase tracking-wider text-[var(--color-text-dim)] mb-1.5">Send USDC to</p>
-                <p className="mono text-[11px] text-[var(--color-gold)] break-all leading-relaxed">{dealData.payTo}</p>
+                <p className="text-[9px] uppercase tracking-wider text-[var(--color-text-dim)] mb-1.5">
+                  Send {displaySymbol} to
+                </p>
+                <p className="mono text-[11px] text-[var(--color-gold)] break-all leading-relaxed">
+                  {dealData.payTo}
+                </p>
               </div>
+              {activeToken?.address && (
+                <div className="bg-[var(--color-card-elevated)] rounded-lg p-3">
+                  <p className="text-[9px] uppercase tracking-wider text-[var(--color-text-dim)] mb-1.5">
+                    Token contract
+                  </p>
+                  <p className="mono text-[11px] text-[var(--color-text-muted)] break-all leading-relaxed">
+                    {activeToken.address}
+                  </p>
+                </div>
+              )}
               <p className="text-[9px] text-[var(--color-text-dim)] text-center">
-                Base Sepolia · USDC · {amount} × 10⁶ raw units
+                Base Sepolia · {displayAmount} {displaySymbol}
+                {activeToken ? ` · ${activeToken.rawAmount} raw units` : ''}
               </p>
             </div>
           </details>
