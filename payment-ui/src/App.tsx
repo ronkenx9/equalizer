@@ -175,26 +175,18 @@ function App() {
 
     if (activeToken && activeToken.address === null) {
       // Native ETH — call createDeal() on the escrow contract via onchain instructions
-      try {
-        const res = await fetch(`/pay/${dealId}/onchain`);
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: 'Failed to fetch deposit instructions' }));
-          throw new Error(err.error || 'Failed to fetch deposit instructions');
-        }
-        const instructions = await res.json();
-        sendTransaction({
-          to: instructions.to as Hex,
-          data: instructions.data as Hex,
-          value: BigInt(instructions.value),
-        });
-      } catch (err: any) {
-        console.error('ETH payment error:', err);
-        // Fallback: bare transfer to payTo (better than nothing)
-        sendTransaction({
-          to: dealData.payTo as Hex,
-          value: BigInt(activeToken.rawAmount),
-        });
+      const res = await fetch(`/pay/${dealId}/onchain`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed to fetch deposit instructions' }));
+        alert(`Cannot pay with ETH right now: ${err.error || 'Try again in a moment'}`);
+        return;
       }
+      const instructions = await res.json();
+      sendTransaction({
+        to: instructions.to as Hex,
+        data: instructions.data as Hex,
+        value: BigInt(instructions.value),
+      });
     } else {
       // ERC20 — use writeContract with transfer()
       const tokenAddress = activeToken?.address ?? dealData.asset;
