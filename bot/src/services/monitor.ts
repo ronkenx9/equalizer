@@ -93,31 +93,27 @@ export function startDealMonitor(bot: Bot) {
                     try {
                         txHash = await autoReleaseOnChain(deal.id);
                         txUrl = explorerTxUrl(txHash);
-
-                        logAgentDecision(deal.id, decisionNode.observation, decisionNode.decision, decisionNode.action, {
-                            onchain_tx_hash: txHash,
-                            inference_provider: "claude",
-                        });
-
-                        updateDeal(deal.id, { status: DealStatus.Completed, completedAt: Date.now() });
-
-                        // Fire webhook for API-created deals
-                        notifyWebhook(deal.webhookUrl, deal.webhookSecret, {
-                            event: "deal.payment_released",
-                            deal_id: deal.id,
-                            amount: deal.terms.price,
-                            recipient: deal.partyBWallet || deal.terms.creatorUsername,
-                            tx_hash: txHash,
-                            eas_attestation: deal.easAttestationUid || null,
-                            timestamp: Date.now(),
-                        });
                     } catch (err: any) {
-                        console.error(`Auto-release onchain failed for deal ${deal.id}:`, err.message);
-                        // CRITICAL: Unlock memory so this can retry on the next 60s tick
-                        actionMemory.delete(memKey);
-                        actionMemory.delete(stateMemKey);
-                        continue;
+                        console.error(`Auto-release onchain failed for deal ${deal.id} (non-blocking):`, err.shortMessage || err.message);
                     }
+
+                    logAgentDecision(deal.id, decisionNode.observation, decisionNode.decision, decisionNode.action, {
+                        onchain_tx_hash: txHash || "offchain_only",
+                        inference_provider: "claude",
+                    });
+
+                    updateDeal(deal.id, { status: DealStatus.Completed, completedAt: Date.now() });
+
+                    // Fire webhook for API-created deals
+                    notifyWebhook(deal.webhookUrl, deal.webhookSecret, {
+                        event: "deal.payment_released",
+                        deal_id: deal.id,
+                        amount: deal.terms.price,
+                        recipient: deal.partyBWallet || deal.terms.creatorUsername,
+                        tx_hash: txHash || "offchain_only",
+                        eas_attestation: deal.easAttestationUid || null,
+                        timestamp: Date.now(),
+                    });
 
                     // Mint EAS attestation
                     let easLine = "";

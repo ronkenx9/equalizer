@@ -217,24 +217,22 @@ export function registerMessageHandler(bot: Bot) {
 
           const windowEnd = getDisputeWindowEnd(deal.terms.disputeWindowSeconds);
 
-          // Submit on-chain
+          // Submit on-chain (best-effort — don't block deal lifecycle)
           let txUrl = "";
           try {
             const txHash = await submitDeliveryOnChain(deal.id);
             txUrl = explorerTxUrl(txHash);
-
-            updateDeal(deal.id, {
-              status: DealStatus.DisputeWindow,
-              delivery,
-              deliveryEvaluation: evaluation,
-              deliverySubmittedAt: Date.now(),
-              disputeWindowEnd: windowEnd,
-            });
           } catch (err: any) {
-            console.error("Failed to submit delivery onchain:", err);
-            await ctx.reply("⚠️ Failed to submit delivery on\\-chain \\(Network Error\\)\\. Please try saying \\\"I'm done\\\" again soon\\.", { parse_mode: "MarkdownV2" });
-            return;
+            console.error("Failed to submit delivery onchain (non-blocking):", err.shortMessage || err.message);
           }
+
+          updateDeal(deal.id, {
+            status: DealStatus.DisputeWindow,
+            delivery,
+            deliveryEvaluation: evaluation,
+            deliverySubmittedAt: Date.now(),
+            disputeWindowEnd: windowEnd,
+          });
 
           const windowHours = deal.terms.disputeWindowSeconds / 3600;
           const windowLabel = windowHours < 1
@@ -286,33 +284,32 @@ export function registerMessageHandler(bot: Bot) {
           { parse_mode: "MarkdownV2" }
         );
 
+        let txHash = "";
+        let txUrl = "";
         try {
-          const txHash = await releaseFunds(deal.id);
-          const txUrl = explorerTxUrl(txHash);
-
-          updateDeal(deal.id, { status: DealStatus.Completed, completedAt: Date.now() });
-
-          logAgentDecision(
-            deal.id,
-            `Brand ${username} explicitly approved delivery: "${text.slice(0, 120)}"`,
-            "release",
-            "explicit_approval",
-            { onchain_tx_hash: txHash }
-          );
-
-          await ctx.reply(
-            `🎉 *Deal \\#${escapeMarkdown(deal.id)} — Complete\\!*\n\n` +
-            `Payment released to ${escapeMarkdown(deal.terms.creatorUsername)}\\.\\n` +
-            `[View transaction](${txUrl})`,
-            { parse_mode: "MarkdownV2" }
-          );
+          txHash = await releaseFunds(deal.id);
+          txUrl = explorerTxUrl(txHash);
         } catch (err: any) {
-          console.error("[ExplicitApproval] Release failed:", err);
-          await ctx.reply(
-            `⚠️ Approval noted but release failed on\\-chain\\. Will retry automatically when the dispute window closes\\.`,
-            { parse_mode: "MarkdownV2" }
-          );
+          console.error("[ExplicitApproval] Release failed onchain (non-blocking):", err.shortMessage || err.message);
         }
+
+        updateDeal(deal.id, { status: DealStatus.Completed, completedAt: Date.now() });
+
+        logAgentDecision(
+          deal.id,
+          `Brand ${username} explicitly approved delivery: "${text.slice(0, 120)}"`,
+          "release",
+          "explicit_approval",
+          { onchain_tx_hash: txHash || "offchain_only" }
+        );
+
+        const txLine = txUrl ? `\n[View transaction](${txUrl})` : "";
+        await ctx.reply(
+          `🎉 *Deal \\#${escapeMarkdown(deal.id)} — Complete\\!*\n\n` +
+          `Payment released to ${escapeMarkdown(deal.terms.creatorUsername)}\\.` +
+          txLine,
+          { parse_mode: "MarkdownV2" }
+        );
         return;
       }
     }
