@@ -1,48 +1,94 @@
-# EQUALIZER — MetaMask Delegation Framework
+# EQUALIZER — MetaMask Delegation Toolkit Integration
 
 ## The Problem: Agents With Unlimited Wallet Access
 
-When an AI agent holds a private key, it holds unlimited power. It can drain wallets, sign arbitrary transactions, interact with any contract on any chain. This is the "agent with unlimited credit card" problem — once you hand the keys over, there is no programmatic boundary on what the agent can do. A compromised agent becomes an adversary with full financial access.
+When an AI agent holds a private key, it holds unlimited power. It can drain wallets, sign arbitrary transactions, interact with any contract on any chain. This is the "agent with unlimited credit card" problem — once you hand the keys over, there is no programmatic boundary on what the agent can do.
 
-## The Solution: Scoped Delegation via EIP-7710
+## The Solution: Onchain Delegation via MetaMask Delegation Toolkit
 
-The MetaMask Delegation Framework changes the model. Instead of giving the agent a raw private key and trusting it to self-limit, a human **delegator** explicitly grants a **delegatee** (the agent) a cryptographically-defined scope of authority. The delegation is:
+EQUALIZER uses the **MetaMask Delegation Toolkit** (`@metamask/delegation-toolkit`) for real onchain delegation enforcement. Instead of trusting the agent to self-limit, brands sign **EIP-712 delegations** that are validated and enforced by the **DelegationManager** smart contract on Base Sepolia.
 
-- **Specific** — only named functions are permitted
-- **Bound** — locked to a single contract address on a single chain
-- **Verifiable** — the scope is hashed (EIP-712 style) so any party can confirm the exact permissions granted
-- **Revocable** — the human can issue a new delegation at any time
+### How It Works
 
-## EQUALIZER's Delegation Scope
+1. **Brand connects wallet** — EOA connects via RainbowKit in the payment portal
+2. **Brand signs delegation** — Free offchain EIP-712 signature granting the agent scoped authority
+3. **Brand funds escrow** — Standard token transfer to the escrow contract
+4. **Agent redeems delegation** — When the agent needs to act (release, refund, rule), it redeems the delegation through the DelegationManager via a Pimlico bundler as a UserOperation
 
-EQUALIZER's agent wallet is delegated authority over exactly five functions on the Base Sepolia escrow contract:
+### Key Architecture
+
+- **Agent wallet** = Hybrid DeleGator smart account (ERC-4337)
+- **Brand wallet** = EOA with counterfactual DeleGator (auto-deployed atomically during first redemption via `accountMeta`)
+- **Caveat enforcers** = Onchain contracts that validate delegation scope at redemption time
+- **Pimlico bundler** = ERC-4337 bundler service for Base Sepolia (submits UserOperations)
+
+## Delegation Scope
+
+Each deal delegation is constrained by two onchain caveat enforcers:
+
+### AllowedTargetsEnforcer (`0x7F20f61b1f09b08D970938F6fa563634d65c4EeB`)
+
+Restricts the delegation to only call the escrow contract. The agent cannot interact with any other contract.
+
+### AllowedMethodsEnforcer (`0x2c21fD0Cb9DC8445CB3fb0DC5E7Bb0Aca01842B5`)
+
+Restricts the delegation to exactly five function selectors:
 
 | Function | Purpose |
 |---|---|
-| `release` | Release escrowed funds to the creator after successful delivery |
-| `refund` | Return funds to the brand if the deal fails |
-| `rule` | Apportion funds via a split ruling after a dispute |
-| `autoRelease` | Trigger time-based automatic release when deadline passes |
-| `submitDelivery` | Record that the creator has submitted their deliverable |
+| `release(bytes32)` | Release escrowed funds to the creator after delivery |
+| `refund(bytes32)` | Return funds to the brand if the deal fails |
+| `rule(bytes32,uint256)` | Split ruling after a dispute |
+| `autoRelease(bytes32)` | Time-based automatic release |
+| `submitDelivery(bytes32)` | Record creator's deliverable submission |
 
-**Prohibited:** All other on-chain actions — including transferring ETH, deploying contracts, calling any external protocol, or interacting with any address other than the escrow contract.
+**Prohibited:** All other onchain actions — the DelegationManager contract reverts if the agent tries anything outside scope.
 
-## The Proof
+## Contract Addresses (Base Sepolia)
 
-Each delegation produces a `scopeHash`: a SHA-256 digest of the JSON-serialised scope object. This hash is the verifiable evidence that authority was explicitly granted. Anyone can re-hash the scope and confirm it matches — no trust in EQUALIZER's assertions required.
+| Contract | Address |
+|---|---|
+| DelegationManager | `0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3` |
+| AllowedTargetsEnforcer | `0x7F20f61b1f09b08D970938F6fa563634d65c4EeB` |
+| AllowedMethodsEnforcer | `0x2c21fD0Cb9DC8445CB3fb0DC5E7Bb0Aca01842B5` |
 
-The delegation proof is exposed publicly at `GET /api/v1/delegation/status` so counterparties and auditors can inspect the agent's authority before a deal begins.
+## API Endpoints
+
+### `GET /api/v1/delegation/deal/:dealId?brandSmartAccount=0x...`
+
+Returns the unsigned delegation struct for the brand to sign. Includes caveats, agent smart account address, and accountMeta for counterfactual deployment.
+
+### `POST /api/v1/delegation/sign`
+
+Stores the brand's EIP-712 signature. Body: `{ dealId, signature, delegation, brandEOA, brandSmartAccount, accountMeta }`.
+
+### `GET /api/v1/delegation/deal/:dealId/status`
+
+Returns whether a deal has a signed delegation, the delegation hash, and signing timestamp.
+
+### `GET /api/v1/delegation/status`
+
+Returns the agent's local fast-path delegation scope (legacy endpoint, still active).
+
+## Backward Compatibility
+
+Deals created before delegation integration (no `delegation` field) fall back to direct EOA execution. The 5 write functions in `chain.ts` check `hasDelegation(dealId)` — if true, redeem via bundler; if false, use direct `writeContract`. Zero regression on existing flows.
+
+## Payment Portal Flow
+
+The RainbowKit payment portal enforces a sequential 3-step flow:
+
+1. **Connect Wallet** — RainbowKit wallet connection
+2. **Sign Delegation** — DelegationStep component presents scope summary, brand signs EIP-712 typed data
+3. **Fund Escrow** — Pay button unlocks only after delegation is signed
+
+Each step gates the next. The brand cannot fund without signing delegation first.
 
 ## Runtime Enforcement
 
-Every on-chain write function in EQUALIZER's chain service checks `verifyDelegation()` before execution. If the function is not in the active delegation's `allowedFunctions`, the call throws and no transaction is submitted. This means an improperly scoped agent literally cannot call contract functions it was not delegated.
+Enforcement happens at two levels:
 
-## The Mandate
+1. **Local fast-path** — `verifyDelegation()` checks function name against allowed list before any execution attempt
+2. **Onchain** — DelegationManager contract validates the EIP-712 signature and caveat enforcers at redemption time. If caveats fail, the transaction reverts onchain.
 
-> "The human grants EQUALIZER exactly the authority it needs to enforce deals. Nothing more. The delegation is provable and enforced at runtime."
-
-This is not a workaround — it is the correct architecture for agentic finance. Authority should be minimal, explicit, and auditable. EQUALIZER enforces that principle at the protocol level.
-
-## Hackathon Note
-
-In the current demo deployment, the agent creates a self-delegation on startup (delegator = delegatee = agent wallet). In production, the human operator would sign the delegation externally before the agent can act. The scope verification and runtime enforcement are fully operational — the signature provenance is the hackathon simplification.
+This is not a trust model — it is cryptographic enforcement. The agent literally cannot execute functions outside its delegated scope.

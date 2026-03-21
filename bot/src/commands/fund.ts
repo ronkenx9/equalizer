@@ -2,7 +2,8 @@ import { Bot } from "grammy";
 import { getDeal, updateDeal } from "../services/store.js";
 import { DealStatus } from "../types/deal.js";
 import { walletRegistry, usernameToTgId } from "./wallet.js";
-import { createDealOnChain, explorerTxUrl, toDealIdBytes32 } from "../services/chain.js";
+import { createDealOnChain, explorerTxUrl } from "../services/chain.js";
+import { toDealIdBytes32 } from "../utils/dealId.js";
 import { usdToEth } from "../services/price.js";
 import { type Hex } from "viem";
 

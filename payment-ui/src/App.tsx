@@ -9,6 +9,7 @@ import {
 } from 'wagmi';
 import { type Hex } from 'viem';
 import { baseSepolia } from 'wagmi/chains';
+import { DelegationStep } from './components/DelegationStep';
 
 const ERC20_ABI = [
   {
@@ -112,6 +113,7 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [settled, setSettled] = useState(false);
   const [selectedToken, setSelectedToken] = useState<string>('USDC');
+  const [delegationSigned, setDelegationSigned] = useState(false);
 
   // Parse supported tokens from deal data
   const supportedTokens: TokenAmount[] = dealData?.extra?.supportedTokens ?? [];
@@ -383,8 +385,40 @@ function App() {
               <p className="text-amber-400 text-sm font-medium mb-1">Wrong Network</p>
               <p className="text-[var(--color-text-dim)] text-xs">Switch to Base Sepolia to continue</p>
             </div>
+          ) : !delegationSigned ? (
+            <div>
+              {/* Step 2: Sign Delegation (before funding) */}
+              <div className="mb-3">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="flex items-center justify-center w-5 h-5 rounded-full bg-[var(--color-gold)]/20 text-[var(--color-gold)] text-[10px] font-bold">2</div>
+                  <span className="text-[11px] font-medium text-[var(--color-text-muted)]">Sign Delegation</span>
+                </div>
+                {dealId && (
+                  <DelegationStep
+                    dealId={dealId}
+                    onSigned={() => setDelegationSigned(true)}
+                  />
+                )}
+              </div>
+
+              {/* Connected wallet info */}
+              <div className="flex items-center justify-between mt-4 px-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-[var(--color-success)]" />
+                  <span className="mono text-[10px] text-[var(--color-text-dim)]">
+                    {address?.slice(0, 6)}...{address?.slice(-4)}
+                  </span>
+                </div>
+                <span className="text-[10px] text-[var(--color-text-dim)]">Base Sepolia</span>
+              </div>
+            </div>
           ) : (
             <div>
+              {/* Step 3: Fund Escrow (after delegation signed) */}
+              <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center justify-center w-5 h-5 rounded-full bg-[var(--color-gold)]/20 text-[var(--color-gold)] text-[10px] font-bold">3</div>
+                <span className="text-[11px] font-medium text-[var(--color-text-muted)]">Fund Escrow</span>
+              </div>
               <button
                 onClick={handlePay}
                 disabled={isWritePending || isTxConfirming}

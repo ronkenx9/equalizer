@@ -4,7 +4,8 @@ import { createDeal, getActiveDealsByChat, updateDeal, getDeal } from "../servic
 import { DealStatus } from "../types/deal.js";
 import { formatDealCard } from "../utils/format.js";
 import { walletRegistry, usernameToTgId } from "../commands/wallet.js";
-import { getDepositInstructions, explorerTxUrl, toDealIdBytes32, submitDeliveryOnChain } from "../services/chain.js";
+import { getDepositInstructions, explorerTxUrl, submitDeliveryOnChain } from "../services/chain.js";
+import { toDealIdBytes32 } from "../utils/dealId.js";
 import { evaluateDelivery, evaluateDeliveryWithCriteria } from "../services/claude.js";
 import { getDisputeWindowEnd } from "../utils/timer.js";
 import { type Hex } from "viem";

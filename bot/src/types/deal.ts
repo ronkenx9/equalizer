@@ -86,4 +86,21 @@ export interface DealState {
   extractedCriteria?: ExtractedCriteria;
   criteriaResults?: CriterionResult[];
   easAttestationUid?: string;
+  delegation?: DealDelegation;
+}
+
+export interface DealDelegation {
+  signature: string;
+  delegationHash: string;
+  delegation: any; // Delegation struct from toolkit — serialized to JSON for disk persistence
+  caveats: {
+    target: string;
+    methods: string[];
+    deadline: number;
+  };
+  accountMeta?: { factory: string; factoryData: string };
+  brandEOA: string;
+  brandSmartAccount: string;
+  agentSmartAccount: string;
+  signedAt: number;
 }

@@ -34,3 +34,30 @@ export function logAgentDecision(
     console.error("Failed to write to agentLog.json", err);
   }
 }
+
+export function logDelegationRedemption(entry: {
+  dealId: string;
+  delegationHash: string;
+  action: string;
+  txHash: string;
+  userOpHash: string;
+}) {
+  try {
+    const logs = JSON.parse(readFileSync(LOG_FILE, "utf-8"));
+    logs.push({
+      timestamp: new Date().toISOString(),
+      type: "delegation_redemption",
+      dealId: entry.dealId,
+      delegationHash: entry.delegationHash,
+      caveatEnforcers: ["AllowedTargets", "AllowedMethods"],
+      action: entry.action,
+      txHash: entry.txHash,
+      userOpHash: entry.userOpHash,
+      delegationManager: "0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3",
+    });
+    writeFileSync(LOG_FILE, JSON.stringify(logs, null, 2));
+    console.log(`[Agent] Delegation redeemed: ${entry.action} for deal ${entry.dealId}`);
+  } catch (err) {
+    console.error("Failed to log delegation redemption:", err);
+  }
+}

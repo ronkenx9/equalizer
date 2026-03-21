@@ -18,6 +18,8 @@
     "express": "^5.2.1",
     "grammy": "^1.41.1",
     "groq-sdk": "^1.1.1",
+    "@metamask/delegation-toolkit": "^0.13.0",
+    "permissionless": "^0.2.0",
     "viem": "^2.47.4"
   },
   "devDependencies": {

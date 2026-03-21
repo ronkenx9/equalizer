@@ -29,4 +29,9 @@ export const config = {
   agentWalletAddress: process.env.AGENT_WALLET_ADDRESS || "",
   botPublicUrl: (process.env.PUBLIC_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, ""),
   ensRpcUrl: process.env.ENS_RPC_URL ?? "https://eth.llamarpc.com",
+  // MetaMask Delegation + Pimlico bundler
+  pimlicoApiKey: process.env.PIMLICO_API_KEY ?? "",
+  bundlerRpcUrl: process.env.PIMLICO_API_KEY
+    ? `https://api.pimlico.io/v2/84532/rpc?apikey=${process.env.PIMLICO_API_KEY}`
+    : "",
 };

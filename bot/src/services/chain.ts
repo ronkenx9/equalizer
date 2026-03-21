@@ -10,7 +10,11 @@ import {
 import { privateKeyToAccount } from "viem/accounts";
 import { baseSepolia } from "viem/chains";
 import { config } from "../config.js";
+import { toDealIdBytes32 } from "../utils/dealId.js";
 import { verifyDelegation } from "./delegation.js";
+import { getDeal } from "./store.js";
+import { isSmartAccountReady } from "./smartAccount.js";
+import { redeemDealDelegation } from "./delegationManager.js";
 
 // ABI — only the functions we call (keeps bundle small)
 const ESCROW_ABI = [
@@ -127,12 +131,11 @@ function getContractAddress(): Hex {
   return config.escrowContractAddress as Hex;
 }
 
-// ── Deal ID Helper ────────────────────────────────────
-
-export function toDealIdBytes32(dealId: string): Hex {
-  // Pad the short deal ID into a bytes32 hex string
-  const hex = Buffer.from(dealId, "utf8").toString("hex");
-  return `0x${hex.padEnd(64, "0")}` as Hex;
+/** Check if a deal has a signed onchain delegation we can redeem via bundler. */
+function hasDelegation(dealId: string): boolean {
+  if (!isSmartAccountReady()) return false;
+  const deal = getDeal(dealId);
+  return !!deal?.delegation?.signature;
 }
 
 // ── Write Functions ───────────────────────────────────
@@ -159,6 +162,9 @@ export async function createDealOnChain(
 export async function submitDeliveryOnChain(dealId: string): Promise<Hex> {
   if (!verifyDelegation("submitDelivery"))
     throw new Error("Delegation denied: submitDelivery not in scope");
+  if (hasDelegation(dealId)) {
+    return redeemDealDelegation(dealId, "submitDelivery", [toDealIdBytes32(dealId)]) as Promise<Hex>;
+  }
   const wallet = getWalletClient();
   return wallet.writeContract({
     address: getContractAddress(),
@@ -171,6 +177,9 @@ export async function submitDeliveryOnChain(dealId: string): Promise<Hex> {
 export async function releaseFunds(dealId: string): Promise<Hex> {
   if (!verifyDelegation("release"))
     throw new Error("Delegation denied: release not in scope");
+  if (hasDelegation(dealId)) {
+    return redeemDealDelegation(dealId, "release", [toDealIdBytes32(dealId)]) as Promise<Hex>;
+  }
   const wallet = getWalletClient();
   return wallet.writeContract({
     address: getContractAddress(),
@@ -183,6 +192,9 @@ export async function releaseFunds(dealId: string): Promise<Hex> {
 export async function refundFunds(dealId: string): Promise<Hex> {
   if (!verifyDelegation("refund"))
     throw new Error("Delegation denied: refund not in scope");
+  if (hasDelegation(dealId)) {
+    return redeemDealDelegation(dealId, "refund", [toDealIdBytes32(dealId)]) as Promise<Hex>;
+  }
   const wallet = getWalletClient();
   return wallet.writeContract({
     address: getContractAddress(),
@@ -195,8 +207,11 @@ export async function refundFunds(dealId: string): Promise<Hex> {
 export async function executeRuling(dealId: string, creatorPercent: number): Promise<Hex> {
   if (!verifyDelegation("rule"))
     throw new Error("Delegation denied: rule not in scope");
-  const wallet = getWalletClient();
   const creatorBps = BigInt(Math.round(creatorPercent * 100)); // percent to bps
+  if (hasDelegation(dealId)) {
+    return redeemDealDelegation(dealId, "rule", [toDealIdBytes32(dealId), creatorBps]) as Promise<Hex>;
+  }
+  const wallet = getWalletClient();
   return wallet.writeContract({
     address: getContractAddress(),
     abi: ESCROW_ABI,
@@ -208,6 +223,9 @@ export async function executeRuling(dealId: string, creatorPercent: number): Pro
 export async function autoReleaseOnChain(dealId: string): Promise<Hex> {
   if (!verifyDelegation("autoRelease"))
     throw new Error("Delegation denied: autoRelease not in scope");
+  if (hasDelegation(dealId)) {
+    return redeemDealDelegation(dealId, "autoRelease", [toDealIdBytes32(dealId)]) as Promise<Hex>;
+  }
   const wallet = getWalletClient();
   return wallet.writeContract({
     address: getContractAddress(),

@@ -25,7 +25,7 @@ const AGENT_JSON_PATH = resolve(__dirname, "../../agent.json");
 console.log("EQUALIZER starting...");
 
 // Initialise MetaMask Delegation Framework scoped permissions
-initDelegation();
+initDelegation().catch((err) => console.error("Delegation init failed:", err));
 
 // Register EAS schema in background (non-blocking)
 initEAS().catch((err) => console.warn("EAS init skipped:", err.message));

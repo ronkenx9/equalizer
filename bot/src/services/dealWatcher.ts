@@ -14,7 +14,8 @@ import { publicClient } from "./chain.js";
 import { getAllDeals, updateDeal } from "./store.js";
 import { DealStatus } from "../types/deal.js";
 import { config } from "../config.js";
-import { toDealIdBytes32, explorerTxUrl } from "./chain.js";
+import { explorerTxUrl } from "./chain.js";
+import { toDealIdBytes32 } from "../utils/dealId.js";
 
 const DEAL_CREATED_EVENT = parseAbiItem(
   "event DealCreated(bytes32 indexed dealId, address indexed brand, address indexed creator, uint256 amount, uint256 disputeWindowDuration, string termsHash)"

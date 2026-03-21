@@ -117,11 +117,10 @@ export function verifyDelegation(functionName: string): boolean {
 }
 
 /**
- * Called on startup if AGENT_WALLET_ADDRESS and ESCROW_CONTRACT_ADDRESS are set.
- * Creates a default delegation using the agent wallet as both delegator and delegatee
- * (hackathon simplicity — in production the human operator would sign this).
+ * Called on startup. Initializes the MetaMask DeleGator smart account (if Pimlico key is set)
+ * and creates a local fast-path delegation for the agent.
  */
-export function initDelegation(): void {
+export async function initDelegation(): Promise<void> {
   const agentWallet = config.agentWalletAddress;
   const contract = config.yieldEscrowAddress || config.escrowContractAddress;
 
@@ -132,7 +131,15 @@ export function initDelegation(): void {
     return;
   }
 
-  // Use agent wallet as placeholder delegator (hackathon mode)
+  // Initialize MetaMask DeleGator smart account if Pimlico key is set
+  try {
+    const { initSmartAccount } = await import("./smartAccount.js");
+    await initSmartAccount();
+  } catch (err) {
+    console.warn("[Delegation] Smart account init failed, falling back to local-only delegation:", err);
+  }
+
+  // Create local fast-path delegation (always, regardless of smart account)
   createDelegation(agentWallet);
   console.log("[Delegation] Default delegation initialised on startup.");
 }
