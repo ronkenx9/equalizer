@@ -4,10 +4,11 @@ import { createDeal, getActiveDealsByChat, updateDeal, getDeal } from "../servic
 import { DealStatus } from "../types/deal.js";
 import { formatDealCard } from "../utils/format.js";
 import { walletRegistry, usernameToTgId } from "../commands/wallet.js";
-import { getDepositInstructions, explorerTxUrl, submitDeliveryOnChain } from "../services/chain.js";
+import { getDepositInstructions, explorerTxUrl, submitDeliveryOnChain, releaseFunds } from "../services/chain.js";
 import { toDealIdBytes32 } from "../utils/dealId.js";
 import { evaluateDelivery, evaluateDeliveryWithCriteria } from "../services/claude.js";
 import { getDisputeWindowEnd } from "../utils/timer.js";
+import { logAgentDecision } from "../services/agentLog.js";
 import { type Hex } from "viem";
 import { usdToEth } from "../services/price.js";
 import { getPaymentMessage } from "../services/x402.js";
@@ -34,6 +35,7 @@ const PRICE_PATTERN = /(\$|eth|usdc|usdt|sol|bnb|matic)\s*\d|\d+\s*(\$|eth|usdc|
 const FUND_INTENT = /\b(fund|deposit|lock|send.*(funds?|money|payment|eth)|pay.*escrow|lock.*deal|put.*escrow)\b/i;
 const SUBMIT_INTENT = /\b(done|finished|completed|delivered|here.*(is|are)|submission|deliverable|i('ve| have)\s*(done|finished|completed|delivered)|check.*(this|it)\s*out|take\s*a\s*look)\b/i;
 const DISPUTE_INTENT = /\b(dispute|not\s*(what|right|correct|good|satisfied|happy|acceptable)|unhappy|disagree|poor\s*quality|didn'?t\s*deliver|wrong|scam|fraud|refuse|reject.*delivery|unsatisfied|ripped\s*off|problem\s*with)\b/i;
+const APPROVAL_INTENT = /\b(approved?|looks?\s*(great|good|perfect|amazing|awesome|fantastic|solid|clean|fire|sick|dope|beautiful|excellent|outstanding|superb)|perfect(ly)?|love\s*it|this\s*is\s*(great|good|perfect|amazing|awesome|exactly\s*what|it|the\s*one)|great\s*(work|job|stuff)|well\s*done|nicely\s*done|nailed\s*it|killed\s*it|this\s*works?|exactly\s*what\s*i\s*(needed|wanted|asked)|satisfied|happy\s*with|good\s*to\s*go|lgtm|ship\s*it|release(\s*the\s*funds?)?|pay\s*(them|him|her|out)|send\s*(the\s*)?(money|payment|funds))\b/i;
 
 export function registerMessageHandler(bot: Bot) {
   bot.on("message", async (ctx) => {
@@ -262,6 +264,49 @@ export function registerMessageHandler(bot: Bot) {
         } catch (err: any) {
           console.error("Delivery evaluation error:", err);
           await ctx.reply("Something went wrong evaluating the delivery\\. Please try again\\.", { parse_mode: "MarkdownV2" });
+        }
+        return;
+      }
+    }
+
+    // ── 3.5 Explicit approval — brand says "looks great", "approved", etc. ──
+    if (APPROVAL_INTENT.test(text) && username && !DISPUTE_INTENT.test(text)) {
+      const active = getActiveDealsByChat(chatId);
+      const deal = active.find(
+        (d) => d.status === DealStatus.DisputeWindow && d.terms.brandUsername === username
+      );
+      if (deal) {
+        await ctx.reply(
+          `✅ Approval received\\. Releasing payment to ${escapeMarkdown(deal.terms.creatorUsername)} now\\.\\.\\.`,
+          { parse_mode: "MarkdownV2" }
+        );
+
+        try {
+          const txHash = await releaseFunds(deal.id);
+          const txUrl = explorerTxUrl(txHash);
+
+          updateDeal(deal.id, { status: DealStatus.Completed, completedAt: Date.now() });
+
+          logAgentDecision(
+            deal.id,
+            `Brand ${username} explicitly approved delivery: "${text.slice(0, 120)}"`,
+            "release",
+            "explicit_approval",
+            { onchain_tx_hash: txHash }
+          );
+
+          await ctx.reply(
+            `🎉 *Deal \\#${escapeMarkdown(deal.id)} — Complete\\!*\n\n` +
+            `Payment released to ${escapeMarkdown(deal.terms.creatorUsername)}\\.\\n` +
+            `[View transaction](${txUrl})`,
+            { parse_mode: "MarkdownV2" }
+          );
+        } catch (err: any) {
+          console.error("[ExplicitApproval] Release failed:", err);
+          await ctx.reply(
+            `⚠️ Approval noted but release failed on\\-chain\\. Will retry automatically when the dispute window closes\\.`,
+            { parse_mode: "MarkdownV2" }
+          );
         }
         return;
       }
