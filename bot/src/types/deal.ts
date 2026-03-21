@@ -87,6 +87,7 @@ export interface DealState {
   criteriaResults?: CriterionResult[];
   easAttestationUid?: string;
   delegation?: DealDelegation;
+  creatorAddress?: string; // stored when payment link is sent so deposit instructions survive restarts
 }
 
 export interface DealDelegation {

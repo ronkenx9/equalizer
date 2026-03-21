@@ -77,6 +77,8 @@ export function registerMessageHandler(bot: Bot) {
             { parse_mode: "MarkdownV2" }
           );
         } else {
+          // Creator wallet is known — persist it so deposit instructions survive restarts
+          updateDeal(waitingDeal.id, { creatorAddress });
           // Creator wallet is known — send payment link
           const priceNum = parseFloat(waitingDeal.terms.price.replace(/[^0-9.]/g, ""));
           const { text: paymentMsg, paymentUrl, usdValue } = await getPaymentMessage(
@@ -120,6 +122,9 @@ export function registerMessageHandler(bot: Bot) {
           );
           return;
         }
+
+        // Persist creator address so deposit instructions survive restarts
+        updateDeal(deal.id, { creatorAddress });
 
         // Send the x402 payment link + ETH deposit instructions
         const priceNum = parseFloat(deal.terms.price.replace(/[^0-9.]/g, ""));

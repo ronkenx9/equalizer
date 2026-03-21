@@ -51,23 +51,17 @@ export function useDelegation(): UseDelegationReturn {
           transport: http("https://sepolia.base.org", { timeout: 30_000 }),
         });
 
-        const brandSmartAccount = await toMetaMaskSmartAccount({
-          client: publicClient,
+        const brandSmartAccount = await (toMetaMaskSmartAccount as any)({
+          client: publicClient as any,
           implementation: Implementation.Hybrid,
           deployParams: [address, [], [], []],
           deploySalt: "0x",
-          signer: { account: address },
+          signer: { address },
         });
 
-        // Get accountMeta for counterfactual deployment
-        const factory = brandSmartAccount.factory;
-        const factoryData = brandSmartAccount.factoryData;
-
-        // 2. Fetch unsigned delegation from backend
+        // 2. Fetch unsigned delegation from backend (accountMeta is optional — backend handles it)
         const params = new URLSearchParams({
           brandSmartAccount: brandSmartAccount.address,
-          ...(factory && { factory: factory as string }),
-          ...(factoryData && { factoryData: factoryData as string }),
         });
 
         const res = await fetch(`${API_BASE}/api/v1/delegation/deal/${dealId}?${params}`);
@@ -75,7 +69,7 @@ export function useDelegation(): UseDelegationReturn {
           const data = await res.json().catch(() => ({ error: "Failed to fetch delegation" }));
           throw new Error(data.error || `HTTP ${res.status}`);
         }
-        const { delegation, agentSmartAccount, accountMeta } = await res.json();
+        const { delegation, accountMeta } = await res.json();
 
         // 3. Sign the delegation via EIP-712
         setStatus("signing");

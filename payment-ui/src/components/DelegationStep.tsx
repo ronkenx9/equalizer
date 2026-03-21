@@ -24,7 +24,7 @@ interface DelegationStepProps {
 }
 
 export function DelegationStep({ dealId, onSigned }: DelegationStepProps) {
-  const { status, error, delegationHash, signDelegation } = useDelegation();
+  const { status, error, signDelegation } = useDelegation();
 
   const handleSign = async () => {
     await signDelegation(dealId);

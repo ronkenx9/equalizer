@@ -14,6 +14,8 @@ import {
   markPaymentSettled,
   setPaymentCallback,
 } from "./services/x402.js";
+import { getDepositInstructions } from "./services/chain.js";
+import { usdToEth } from "./services/price.js";
 import { startDealWatcher, setDealFundedCallback, stopDealWatcher } from "./services/dealWatcher.js";
 import { apiRouter } from "./api/router.js";
 import { notifyWebhook } from "./services/webhook.js";
@@ -207,6 +209,55 @@ app.get("/pay/:dealId", (req, res) => {
   // Human user: redirect to the React checkout app
   // Redirection with the dealId as a query param so the React app can pick it up
   res.redirect(`/index.html?dealId=${dealId}`);
+});
+
+// GET /pay/:dealId/onchain — Returns createDeal() calldata for the payment portal's ETH path
+app.get("/pay/:dealId/onchain", async (req, res) => {
+  const { dealId } = req.params;
+  const deal = getDeal(dealId);
+
+  if (!deal) {
+    res.status(404).json({ error: "Deal not found" });
+    return;
+  }
+
+  const creatorAddress = deal.creatorAddress;
+  if (!creatorAddress) {
+    res.status(400).json({ error: "Creator wallet address not yet registered" });
+    return;
+  }
+
+  try {
+    const priceNum = parseFloat(deal.terms.price.replace(/[^0-9.]/g, ""));
+    const { ethAmount } = deal.terms.currency.toUpperCase() === "ETH"
+      ? { ethAmount: priceNum.toString() }
+      : await usdToEth(priceNum);
+
+    const deadlineDate = new Date(deal.terms.deadline);
+    const deadlineUnix = Math.floor(deadlineDate.getTime() / 1000);
+    const effectiveDeadline = isNaN(deadlineUnix)
+      ? Math.floor(Date.now() / 1000) + 7 * 86400
+      : deadlineUnix;
+    const termsHash = `${deal.terms.deliverable}|${deal.terms.price}|${deal.terms.deadline}`;
+
+    const instructions = getDepositInstructions(
+      dealId,
+      creatorAddress as `0x${string}`,
+      effectiveDeadline,
+      deal.terms.disputeWindowSeconds,
+      termsHash,
+      ethAmount
+    );
+
+    res.json({
+      to: instructions.to,
+      data: instructions.data,
+      value: instructions.valueBigInt.toString(),
+      ethAmount,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // POST /pay/:dealId — x402 payment verification + settlement
