@@ -121,7 +121,7 @@ export function getPaymentRequirements(dealId: string) {
     resource: `${config.botPublicUrl}/pay/${dealId}`,
     description: `Fund EQUALIZER Deal #${dealId}`,
     mimeType: "application/json",
-    payTo: config.agentWalletAddress || config.escrowContractAddress,
+    payTo: config.yieldEscrowAddress || config.escrowContractAddress || config.agentWalletAddress,
     maxTimeoutSeconds: 300,
     asset: usdc?.address ?? "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
     extra: {
