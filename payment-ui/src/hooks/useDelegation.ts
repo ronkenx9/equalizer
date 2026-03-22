@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { useAccount, useSignTypedData } from "wagmi";
+import { useAccount, useSignTypedData, useWalletClient } from "wagmi";
 import {
   toMetaMaskSmartAccount,
   Implementation,
@@ -29,6 +29,7 @@ const API_BASE = "";
 export function useDelegation(): UseDelegationReturn {
   const { address } = useAccount();
   const { signTypedDataAsync } = useSignTypedData();
+  const { data: walletClient } = useWalletClient();
 
   const [status, setStatus] = useState<DelegationStatus>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +39,12 @@ export function useDelegation(): UseDelegationReturn {
     async (dealId: string) => {
       if (!address) {
         setError("Wallet not connected");
+        return;
+      }
+
+      if (!walletClient?.account) {
+        setError("Wallet still loading — please try again in a moment");
+        setStatus("error");
         return;
       }
 
@@ -56,10 +63,10 @@ export function useDelegation(): UseDelegationReturn {
           implementation: Implementation.Hybrid,
           deployParams: [address, [], [], []],
           deploySalt: "0x",
-          signer: { address },
+          signer: { account: walletClient.account },
         });
 
-        // 2. Fetch unsigned delegation from backend (accountMeta is optional — backend handles it)
+        // 2. Fetch unsigned delegation from backend
         const params = new URLSearchParams({
           brandSmartAccount: brandSmartAccount.address,
         });
@@ -134,7 +141,7 @@ export function useDelegation(): UseDelegationReturn {
         setStatus("error");
       }
     },
-    [address, signTypedDataAsync]
+    [address, signTypedDataAsync, walletClient]
   );
 
   return { status, error, delegationHash, signDelegation };
