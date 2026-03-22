@@ -1,9 +1,14 @@
-import { readFileSync, writeFileSync } from "fs";
-import { resolve, dirname } from "path";
-import { fileURLToPath } from "url";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
+import { resolve, join } from "path";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-export const LOG_FILE = resolve(__dirname, "../../data/agentLog.json");
+const DATA_DIR = join(process.cwd(), "data");
+export const LOG_FILE = resolve(DATA_DIR, "agentLog.json");
+
+// Ensure data directory and log file exist on import
+try {
+  if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
+  if (!existsSync(LOG_FILE)) writeFileSync(LOG_FILE, "[]");
+} catch { /* Railway ephemeral FS — best effort */ }
 
 export function logAgentDecision(
   dealId: string,

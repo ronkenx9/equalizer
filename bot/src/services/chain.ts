@@ -163,7 +163,11 @@ export async function submitDeliveryOnChain(dealId: string): Promise<Hex> {
   if (!verifyDelegation("submitDelivery"))
     throw new Error("Delegation denied: submitDelivery not in scope");
   if (hasDelegation(dealId)) {
-    return redeemDealDelegation(dealId, "submitDelivery", [toDealIdBytes32(dealId)]) as Promise<Hex>;
+    try {
+      return await (redeemDealDelegation(dealId, "submitDelivery", [toDealIdBytes32(dealId)]) as Promise<Hex>);
+    } catch (err: any) {
+      console.warn(`[Chain] Delegation redemption failed for submitDelivery, falling back to EOA: ${err.shortMessage || err.message}`);
+    }
   }
   const wallet = getWalletClient();
   return wallet.writeContract({
@@ -178,7 +182,11 @@ export async function releaseFunds(dealId: string): Promise<Hex> {
   if (!verifyDelegation("release"))
     throw new Error("Delegation denied: release not in scope");
   if (hasDelegation(dealId)) {
-    return redeemDealDelegation(dealId, "release", [toDealIdBytes32(dealId)]) as Promise<Hex>;
+    try {
+      return await (redeemDealDelegation(dealId, "release", [toDealIdBytes32(dealId)]) as Promise<Hex>);
+    } catch (err: any) {
+      console.warn(`[Chain] Delegation redemption failed for release, falling back to EOA: ${err.shortMessage || err.message}`);
+    }
   }
   const wallet = getWalletClient();
   return wallet.writeContract({
@@ -193,7 +201,11 @@ export async function refundFunds(dealId: string): Promise<Hex> {
   if (!verifyDelegation("refund"))
     throw new Error("Delegation denied: refund not in scope");
   if (hasDelegation(dealId)) {
-    return redeemDealDelegation(dealId, "refund", [toDealIdBytes32(dealId)]) as Promise<Hex>;
+    try {
+      return await (redeemDealDelegation(dealId, "refund", [toDealIdBytes32(dealId)]) as Promise<Hex>);
+    } catch (err: any) {
+      console.warn(`[Chain] Delegation redemption failed for refund, falling back to EOA: ${err.shortMessage || err.message}`);
+    }
   }
   const wallet = getWalletClient();
   return wallet.writeContract({
@@ -209,7 +221,11 @@ export async function executeRuling(dealId: string, creatorPercent: number): Pro
     throw new Error("Delegation denied: rule not in scope");
   const creatorBps = BigInt(Math.round(creatorPercent * 100)); // percent to bps
   if (hasDelegation(dealId)) {
-    return redeemDealDelegation(dealId, "rule", [toDealIdBytes32(dealId), creatorBps]) as Promise<Hex>;
+    try {
+      return await (redeemDealDelegation(dealId, "rule", [toDealIdBytes32(dealId), creatorBps]) as Promise<Hex>);
+    } catch (err: any) {
+      console.warn(`[Chain] Delegation redemption failed for rule, falling back to EOA: ${err.shortMessage || err.message}`);
+    }
   }
   const wallet = getWalletClient();
   return wallet.writeContract({
@@ -224,7 +240,11 @@ export async function autoReleaseOnChain(dealId: string): Promise<Hex> {
   if (!verifyDelegation("autoRelease"))
     throw new Error("Delegation denied: autoRelease not in scope");
   if (hasDelegation(dealId)) {
-    return redeemDealDelegation(dealId, "autoRelease", [toDealIdBytes32(dealId)]) as Promise<Hex>;
+    try {
+      return await (redeemDealDelegation(dealId, "autoRelease", [toDealIdBytes32(dealId)]) as Promise<Hex>);
+    } catch (err: any) {
+      console.warn(`[Chain] Delegation redemption failed for autoRelease, falling back to EOA: ${err.shortMessage || err.message}`);
+    }
   }
   const wallet = getWalletClient();
   return wallet.writeContract({

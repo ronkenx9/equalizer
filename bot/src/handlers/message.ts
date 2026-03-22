@@ -303,7 +303,7 @@ export function registerMessageHandler(bot: Bot) {
           { onchain_tx_hash: txHash || "offchain_only" }
         );
 
-        const txLine = txUrl ? `\n[View transaction](${txUrl})` : "";
+        const txLine = txUrl ? `\n[View transaction](${escapeMarkdown(txUrl)})` : "";
         await ctx.reply(
           `🎉 *Deal \\#${escapeMarkdown(deal.id)} — Complete\\!*\n\n` +
           `Payment released to ${escapeMarkdown(deal.terms.creatorUsername)}\\.` +
