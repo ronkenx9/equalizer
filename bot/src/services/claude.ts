@@ -331,5 +331,39 @@ export async function evaluateDeliveryWithCriteria(
   }
 }
 
+// ── Semantic approval detection ──────────────────────
+
+/**
+ * Uses Groq to detect if a brand message expresses satisfaction/approval
+ * of a delivery. Returns true for any natural affirmative response.
+ */
+export async function detectApprovalIntent(message: string): Promise<boolean> {
+  try {
+    const raw = await callGroq(
+      `You detect whether a client's message expresses satisfaction or approval of a delivered piece of work. The deal is in DELIVERED state and the client is reviewing the deliverable.
+
+Answer YES if the message expresses ANY of these:
+- Satisfaction ("good", "nice", "great", "love it", "perfect", "amazing", "fire", "dope", "sick", "clean")
+- Approval ("approved", "looks good", "that works", "works for me", "this is it")
+- Gratitude implying acceptance ("thanks", "thank you", "appreciate it")
+- Instruction to release payment ("release", "pay them", "pay him", "pay her", "send payment")
+- General positive acknowledgment ("well done", "good job", "great work", "nailed it", "killed it")
+- Short affirmatives in context ("yes", "yep", "yeah", "sure", "ok" when reviewing delivery)
+
+Answer NO if the message:
+- Expresses dissatisfaction or requests changes
+- Is unrelated to the delivery
+- Is ambiguous with no positive sentiment
+
+Reply with ONLY "YES" or "NO". Nothing else.`,
+      `Client message: "${message}"`
+    );
+    return raw.trim().toUpperCase().startsWith("YES");
+  } catch (err) {
+    console.error("[ApprovalDetect] Groq call failed:", err);
+    return false;
+  }
+}
+
 // Export for any modules that still need raw inference
 export { callGroq, callVenice };

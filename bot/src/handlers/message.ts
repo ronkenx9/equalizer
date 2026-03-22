@@ -6,7 +6,7 @@ import { formatDealCard } from "../utils/format.js";
 import { walletRegistry, usernameToTgId } from "../commands/wallet.js";
 import { getDepositInstructions, explorerTxUrl, submitDeliveryOnChain, releaseFunds } from "../services/chain.js";
 import { toDealIdBytes32 } from "../utils/dealId.js";
-import { evaluateDelivery, evaluateDeliveryWithCriteria } from "../services/claude.js";
+import { evaluateDelivery, evaluateDeliveryWithCriteria, detectApprovalIntent } from "../services/claude.js";
 import { getDisputeWindowEnd } from "../utils/timer.js";
 import { logAgentDecision } from "../services/agentLog.js";
 import { type Hex } from "viem";
@@ -273,44 +273,54 @@ export function registerMessageHandler(bot: Bot) {
     }
 
     // ── 3.5 Explicit approval — brand says "looks great", "approved", etc. ──
-    if (APPROVAL_INTENT.test(text) && username && !DISPUTE_INTENT.test(text)) {
+    // Two-tier: regex for obvious matches, Groq semantic fallback for natural language
+    if (username && !DISPUTE_INTENT.test(text)) {
       const active = getActiveDealsByChat(chatId);
       const deal = active.find(
         (d) => d.status === DealStatus.DisputeWindow && d.terms.brandUsername === username
       );
       if (deal) {
-        await ctx.reply(
-          `✅ Approval received\\. Releasing payment to ${escapeMarkdown(deal.terms.creatorUsername)} now\\.\\.\\.`,
-          { parse_mode: "MarkdownV2" }
-        );
-
-        let txHash = "";
-        let txUrl = "";
-        try {
-          txHash = await releaseFunds(deal.id);
-          txUrl = explorerTxUrl(txHash);
-        } catch (err: any) {
-          console.error("[ExplicitApproval] Release failed onchain (non-blocking):", err.shortMessage || err.message);
+        // Tier 1: fast regex match
+        let isApproval = APPROVAL_INTENT.test(text);
+        // Tier 2: semantic detection via Groq for anything the regex misses
+        if (!isApproval) {
+          isApproval = await detectApprovalIntent(text);
         }
 
-        updateDeal(deal.id, { status: DealStatus.Completed, completedAt: Date.now() });
+        if (isApproval) {
+          await ctx.reply(
+            `✅ Approval received\\. Releasing payment to ${escapeMarkdown(deal.terms.creatorUsername)} now\\.\\.\\.`,
+            { parse_mode: "MarkdownV2" }
+          );
 
-        logAgentDecision(
-          deal.id,
-          `Brand ${username} explicitly approved delivery: "${text.slice(0, 120)}"`,
-          "release",
-          "explicit_approval",
-          { onchain_tx_hash: txHash || "offchain_only" }
-        );
+          let txHash = "";
+          let txUrl = "";
+          try {
+            txHash = await releaseFunds(deal.id);
+            txUrl = explorerTxUrl(txHash);
+          } catch (err: any) {
+            console.error("[ExplicitApproval] Release failed onchain (non-blocking):", err.shortMessage || err.message);
+          }
 
-        const txLine = txUrl ? `\n[View transaction](${escapeMarkdown(txUrl)})` : "";
-        await ctx.reply(
-          `🎉 *Deal \\#${escapeMarkdown(deal.id)} — Complete\\!*\n\n` +
-          `Payment released to ${escapeMarkdown(deal.terms.creatorUsername)}\\.` +
-          txLine,
-          { parse_mode: "MarkdownV2" }
-        );
-        return;
+          updateDeal(deal.id, { status: DealStatus.Completed, completedAt: Date.now() });
+
+          logAgentDecision(
+            deal.id,
+            `Brand ${username} explicitly approved delivery: "${text.slice(0, 120)}"`,
+            "release",
+            "explicit_approval",
+            { onchain_tx_hash: txHash || "offchain_only" }
+          );
+
+          const txLine = txUrl ? `\n[View transaction](${escapeMarkdown(txUrl)})` : "";
+          await ctx.reply(
+            `🎉 *Deal \\#${escapeMarkdown(deal.id)} — Complete\\!*\n\n` +
+            `Payment released to ${escapeMarkdown(deal.terms.creatorUsername)}\\.` +
+            txLine,
+            { parse_mode: "MarkdownV2" }
+          );
+          return;
+        }
       }
     }
 
