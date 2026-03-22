@@ -192,7 +192,7 @@ export function registerMessageHandler(bot: Bot) {
 
           if (deal.extractedCriteria && deal.extractedCriteria.criteria.length > 0) {
             const criteriaEval = await evaluateDeliveryWithCriteria(
-              deal.extractedCriteria, delivery, deal.terms
+              deal.extractedCriteria, delivery, deal.terms, timestamp
             );
             evaluation = {
               passed: criteriaEval.overall === "PASS",

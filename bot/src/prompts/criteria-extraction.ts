@@ -5,6 +5,8 @@ IMPORTANT RULES:
 - NEVER extract subjective criteria (quality, creativity, tone, "good enough")
 - Each criterion must be a single, specific check
 - If the deal is vague, extract what you can and note what's ambiguous
+- CRITICAL: The "Brand" and "Creator" fields are METADATA only — they identify who the parties are. NEVER create criteria requiring the delivery to mention the brand or creator username unless the Deliverable description EXPLICITLY states they must be mentioned.
+- CRITICAL: NEVER invent deadline_check criteria about delivery timing. Delivery timestamps are tracked separately by the system — do NOT add any criterion about when something was delivered.
 
 Classify the deliverable type:
 - social_post (Twitter, Instagram, TikTok posts/threads)

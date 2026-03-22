@@ -272,13 +272,18 @@ Respond with valid JSON only:
 export async function evaluateDeliveryWithCriteria(
   criteria: ExtractedCriteria,
   delivery: string,
-  terms: DealTerms
+  terms: DealTerms,
+  deliveredAtMs?: number
 ): Promise<{
   overall: "PASS" | "FAIL" | "PARTIAL";
   confidence: number;
   results: CriterionResult[];
   summary: string;
 }> {
+  const deliveredAtStr = deliveredAtMs
+    ? new Date(deliveredAtMs).toISOString()
+    : new Date().toISOString();
+
   const message = [
     `Deliverable Type: ${criteria.type}`,
     criteria.platform ? `Platform: ${criteria.platform}` : "",
@@ -292,6 +297,8 @@ export async function evaluateDeliveryWithCriteria(
     `Deal Terms:`,
     `Deliverable: ${terms.deliverable}`,
     `Deadline: ${terms.deadline}`,
+    ``,
+    `Delivery Timestamp: ${deliveredAtStr} (this is the exact time the creator submitted — use this for any deadline checks)`,
     ``,
     `Submitted Delivery:`,
     delivery,
