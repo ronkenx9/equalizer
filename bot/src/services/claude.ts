@@ -253,6 +253,12 @@ RULES:
 - Do NOT judge quality, tone, or creativity unless a criterion explicitly requires it.
 - overall is PASS only if ALL required criteria pass.
 
+LENIENT MATCHING RULES (apply these generously):
+- "Call to action" or "CTA" criteria: PASS if the delivery contains ANY URL, domain name, "visit [site]", "go to [site]", "check out [site]", "head to [site]", or similar phrasing that directs the reader somewhere. Exact wording does not matter — intent matters.
+- "Mention X" criteria: PASS if the concept is present in any reasonable form (e.g. "Base blockchain" matches "Base chain", "built on Base", "the Base network", etc.)
+- "Word count" or "minimum words" criteria: Count actual words in the delivery text. Be accurate.
+- "Deadline" criteria: Use the provided Delivery Timestamp to check. NEVER say "delivery time unknown" — the timestamp is always provided above.
+
 Respond with valid JSON only:
 {
   "overall": "PASS" | "FAIL" | "PARTIAL",
