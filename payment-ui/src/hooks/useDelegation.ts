@@ -6,6 +6,7 @@ import {
   getDeleGatorEnvironment,
 } from "@metamask/delegation-toolkit";
 import { createPublicClient, http, type Hex } from "viem";
+import { toAccount } from "viem/accounts";
 import { baseSepolia } from "viem/chains";
 
 export type DelegationStatus = "idle" | "loading" | "signing" | "signed" | "error";
@@ -58,12 +59,30 @@ export function useDelegation(): UseDelegationReturn {
           transport: http("https://sepolia.base.org", { timeout: 30_000 }),
         });
 
+        // Create a custom local account that delegates signing to the
+        // browser wallet via walletClient.  wagmi's walletClient.account is
+        // a JsonRpcAccount (type 'json-rpc') which lacks signMessage /
+        // signTypedData on the account object itself — toMetaMaskSmartAccount
+        // needs a local-style account with those methods.
+        const localAccount = toAccount({
+          address,
+          async signMessage({ message }) {
+            return walletClient.signMessage({ account: address, message });
+          },
+          async signTransaction(tx: any) {
+            return walletClient.signTransaction({ account: address, ...tx });
+          },
+          async signTypedData(params: any) {
+            return walletClient.signTypedData({ account: address, ...params });
+          },
+        });
+
         const brandSmartAccount = await (toMetaMaskSmartAccount as any)({
           client: publicClient as any,
           implementation: Implementation.Hybrid,
           deployParams: [address, [], [], []],
           deploySalt: "0x",
-          signer: { account: walletClient.account },
+          signer: { account: localAccount },
         });
 
         // 2. Fetch unsigned delegation from backend
