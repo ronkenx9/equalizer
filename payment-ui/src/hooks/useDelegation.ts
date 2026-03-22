@@ -5,8 +5,7 @@ import {
   Implementation,
   getDeleGatorEnvironment,
 } from "@metamask/delegation-toolkit";
-import { createPublicClient, http, type Hex } from "viem";
-import { toAccount } from "viem/accounts";
+import { createPublicClient, http, type Hex, type LocalAccount } from "viem";
 import { baseSepolia } from "viem/chains";
 
 export type DelegationStatus = "idle" | "loading" | "signing" | "signed" | "error";
@@ -59,30 +58,34 @@ export function useDelegation(): UseDelegationReturn {
           transport: http("https://sepolia.base.org", { timeout: 30_000 }),
         });
 
-        // Create a custom local account that delegates signing to the
-        // browser wallet via walletClient.  wagmi's walletClient.account is
-        // a JsonRpcAccount (type 'json-rpc') which lacks signMessage /
-        // signTypedData on the account object itself — toMetaMaskSmartAccount
-        // needs a local-style account with those methods.
-        const localAccount = toAccount({
+        // wagmi's walletClient.account is a JsonRpcAccount (type 'json-rpc')
+        // which lacks signMessage/signTypedData on the account object.
+        // toMetaMaskSmartAccount needs a 'local'-type account with those methods.
+        // We construct a local-shaped account that delegates signing to the
+        // browser wallet via walletClient.
+        const wc = walletClient;
+        const signerAccount = {
           address,
-          async signMessage({ message }) {
-            return walletClient.signMessage({ account: address, message });
+          type: "local" as const,
+          source: "custom" as const,
+          publicKey: "0x04" as Hex,
+          signMessage: async ({ message }: { message: any }) => {
+            return wc.signMessage({ account: address, message });
           },
-          async signTransaction(tx: any) {
-            return walletClient.signTransaction({ account: address, ...tx });
+          signTransaction: async (tx: any) => {
+            return wc.signTransaction({ account: address, ...tx });
           },
-          async signTypedData(params: any) {
-            return walletClient.signTypedData({ account: address, ...params });
+          signTypedData: async (typedData: any) => {
+            return wc.signTypedData({ account: address, ...typedData });
           },
-        });
+        } as unknown as LocalAccount;
 
         const brandSmartAccount = await (toMetaMaskSmartAccount as any)({
           client: publicClient as any,
           implementation: Implementation.Hybrid,
           deployParams: [address, [], [], []],
           deploySalt: "0x",
-          signer: { account: localAccount },
+          signer: { account: signerAccount },
         });
 
         // 2. Fetch unsigned delegation from backend
