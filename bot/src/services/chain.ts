@@ -153,7 +153,7 @@ export async function createDealOnChain(
     address: getContractAddress(),
     abi: ESCROW_ABI,
     functionName: "createDeal",
-    args: [toDealIdBytes32(dealId), creatorAddress, BigInt(deadlineUnix), BigInt(disputeWindowSeconds), termsHash],
+    args: [toDealIdBytes32(dealId), creatorAddress, BigInt(deadlineUnix), 172800n, termsHash],
     value: parseEther(amountEth),
   });
   return hash;
@@ -276,7 +276,7 @@ export function getDepositInstructions(
   const data = encodeFunctionData({
     abi: ESCROW_ABI,
     functionName: "createDeal",
-    args: [toDealIdBytes32(dealId), creatorAddress, BigInt(deadlineUnix), BigInt(disputeWindowSeconds), termsHash],
+    args: [toDealIdBytes32(dealId), creatorAddress, BigInt(deadlineUnix), 172800n, termsHash],
   });
 
   return {
