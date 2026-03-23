@@ -34,7 +34,7 @@ export function Nav() {
         {/* CTA */}
         <div className="flex items-center gap-4">
           <a
-            href="https://t.me/equalizer_agent_bot"
+            href="https://t.me/EqualizerThebot"
             target="_blank"
             rel="noopener noreferrer"
             className="font-mono uppercase tracking-widest transition-all duration-300 whitespace-nowrap"

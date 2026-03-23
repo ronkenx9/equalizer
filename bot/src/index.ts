@@ -147,6 +147,36 @@ startDealWatcher().catch((err) => console.warn("Deal watcher failed to start:", 
 // ── Express Server ───────────────────────────────────
 const port = process.env.PORT || 3000;
 const app = express();
+
+// ── IP-based rate limiting for public endpoints ─────
+const ipHits = new Map<string, { count: number; resetAt: number }>();
+const IP_LIMIT = 60;       // requests per window
+const IP_WINDOW = 60_000;  // 1 minute
+
+app.use((req, res, next) => {
+  const ip = req.ip || req.socket.remoteAddress || "unknown";
+  const now = Date.now();
+  const entry = ipHits.get(ip);
+  if (!entry || now > entry.resetAt) {
+    ipHits.set(ip, { count: 1, resetAt: now + IP_WINDOW });
+    return next();
+  }
+  if (entry.count >= IP_LIMIT) {
+    res.status(429).json({ error: "Too many requests. Try again in a minute." });
+    return;
+  }
+  entry.count++;
+  next();
+});
+
+// Clean up stale entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of ipHits) {
+    if (now > entry.resetAt) ipHits.delete(ip);
+  }
+}, 300_000);
+
 app.use(express.json());
 app.use("/api", apiRouter);
 

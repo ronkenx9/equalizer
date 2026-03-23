@@ -27,7 +27,7 @@ export function CTA() {
 
         <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mb-12 sm:mb-16">
           <a
-            href="https://t.me/equalizer_agent_bot"
+            href="https://t.me/EqualizerThebot"
             target="_blank"
             rel="noopener noreferrer"
             className="bg-amber-500 text-base font-mono font-bold uppercase tracking-widest px-8 sm:px-12 py-4 sm:py-6 rounded-none hover:bg-amber-400 active:bg-amber-600 transition-colors duration-300 relative overflow-hidden group inline-block text-black"

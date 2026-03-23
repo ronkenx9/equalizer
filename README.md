@@ -180,6 +180,10 @@ As deal volume grows, EQUALIZER surfaces average rates by category from real com
 
 ## Setup
 
+### Prerequisites
+
+**EQUALIZER works inside a Telegram group.** Both the brand (client) and the creator (freelancer) must be in the same group with the bot. Add `@equalizer_agent_bot` as a member of the group — then just talk naturally. The agent monitors the conversation and detects deals as they form.
+
 ```bash
 git clone https://github.com/ronkenx9/equalizer
 cd equalizer
@@ -200,6 +204,14 @@ cd contracts && npx hardhat run scripts/deploy.ts --network baseSepolia
 # Run
 cd ../bot && npm run dev
 ```
+
+### Quick Start (Users)
+
+1. Create a Telegram group with you, the other party, and `@equalizer_agent_bot`
+2. Agree on a deal in natural conversation — the agent will surface it automatically
+3. Brand approves the deal → agent sends a payment link
+4. Brand funds the escrow → work begins
+5. Creator submits delivery → agent evaluates → payment releases automatically after 48hrs
 
 ## Hackathon
 
