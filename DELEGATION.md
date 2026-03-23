@@ -48,6 +48,9 @@ Restricts the delegation to exactly five function selectors:
 
 | Contract | Address |
 |---|---|
+| Escrow | `0xc7D90AD1fa90FedF26d18494228CE8AD5671E8f0` |
+| Agent DeleGator | `0xFbF6c46D0A32DbD788E4E0c2F0276e0F7bd8C5c0` |
+| Agent EOA | `0x4ECb9254a0bd6fEf749B8B8ab56812Bc44Ee0220` |
 | DelegationManager | `0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3` |
 | AllowedTargetsEnforcer | `0x7F20f61b1f09b08D970938F6fa563634d65c4EeB` |
 | AllowedMethodsEnforcer | `0x2c21fD0Cb9DC8445CB3fb0DC5E7Bb0Aca01842B5` |
