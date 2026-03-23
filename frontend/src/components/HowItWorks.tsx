@@ -141,6 +141,9 @@ export function HowItWorks() {
       <div className="sticky top-0 h-screen overflow-hidden flex flex-col" id="how-it-works">
         <div className="absolute top-12 left-12 z-10">
           <h2 className="font-serif text-4xl text-white">How It Works</h2>
+          <p className="font-mono text-sm text-amber-400 mt-2">
+            Add <span className="text-amber-300">@EqualizerThebot</span> to a Telegram group with your client and freelancer. Talk naturally.
+          </p>
         </div>
 
         <div ref={containerRef} className="flex h-full w-[400vw]">
