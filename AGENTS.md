@@ -1,145 +1,81 @@
-# EQUALIZER for AI Agents
+# EQUALIZER — Agent Architecture
 
-EQUALIZER is a deal enforcement protocol. Any AI agent can create, fund, and settle deals through the REST API, MCP tools, or x402 payment requests. The same enforcement layer humans use.
+## Identity
 
-## Quick Start
+**EQUALIZER** is an autonomous deal enforcement agent that lives inside Telegram and Discord group chats. It detects when two parties agree on a deal, locks payment in onchain escrow, evaluates delivery against the exact agreed terms, and releases payment automatically. No human arbiter required.
 
-```bash
-# 1. Get an API key
-curl -X POST https://your-deployment.railway.app/api/v1/auth/key
+Built by a creator in Lagos, Nigeria who was ghosted after delivering real work. EQUALIZER makes trust unnecessary.
 
-# 2. Create a deal
-curl -X POST https://your-deployment.railway.app/api/v1/deals/create \
-  -H "Content-Type: application/json" \
-  -H "X-Equalizer-API-Key: eq_your_key_here" \
-  -d '{
-    "party_a": "0xBuyerWallet",
-    "party_b": "0xSellerWallet",
-    "deliverable": "Market research report on Solana gaming",
-    "amount": "50",
-    "deadline_seconds": 86400,
-    "evaluation_criteria": "Must include market size, top 5 projects, and growth trends"
-  }'
+## Agent Stack
 
-# 3. Fund via x402 endpoint (returned in response)
-# 4. Seller submits delivery
-# 5. AI evaluates -> auto-releases on satisfaction
-```
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| **Runtime** | Node.js + TypeScript | Core agent process |
+| **Chat Interface** | Grammy.js (Telegram) + Discord.js | Listens to group conversations |
+| **Deal Detection LLM** | Llama 3.3 70B via Groq | Detects deals forming in natural language |
+| **Delivery Evaluation LLM** | Llama 3.3 70B via Groq | Evaluates deliverables against locked criteria |
+| **Dispute Mediation LLM** | Llama 3.3 70B via Venice AI | Private, encrypted dispute mediation |
+| **Onchain Escrow** | Solidity + viem (Base Sepolia) | Trustless fund custody and release |
+| **Delegation** | MetaMask Delegation Toolkit + Pimlico | ERC-4337 UserOps for gasless agent actions |
+| **Attestation** | Ethereum Attestation Service (EAS) | Onchain reputation records |
+| **Payments** | x402 / MPP protocol | Agent-native HTTP 402 payment flow |
+| **Development Harness** | Claude Code (claude-opus-4-6) | Built the entire codebase |
 
-## REST API Reference
+## How The Agent Makes Decisions
 
-Base URL: `https://your-deployment.railway.app/api/v1`
+### 1. Deal Detection (Autonomous)
+The agent monitors every message in a group chat. When it detects price signals, deliverable descriptions, and deadline language, it calls Groq (Llama 3.3 70B) to analyze the conversation and extract structured deal terms. No slash commands needed — it reads natural language.
 
-All endpoints require `X-Equalizer-API-Key` header (except key generation).
+### 2. Criteria Extraction (Autonomous)
+When a deal is confirmed, the agent extracts measurable evaluation criteria from the conversation. These are locked onchain and shown to both parties. Only these locked criteria are used for evaluation — never stale chat history.
 
-### Authentication
+### 3. Escrow Funding (Human-in-the-loop)
+The brand receives a payment link. They connect their wallet, optionally sign a MetaMask delegation (EIP-712), and fund the escrow contract. The agent monitors the chain for `DealCreated` events.
 
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/api/v1/auth/key` | POST | None | Generate API key |
+### 4. Delivery Evaluation (Autonomous)
+When the creator says "I'm done" and provides deliverables, the agent calls Groq to evaluate the submission against the locked criteria. Each criterion gets a pass/fail with reasoning. The evaluation uses the Telegram message timestamp for deadline checks.
 
-### Deals
+### 5. Approval Detection (Autonomous)
+The agent uses semantic detection via Groq to identify natural approval language from the brand: "looks good", "nice", "approved", "pay them", etc. No exact phrase matching required.
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/v1/deals/create` | POST | Create a new enforced deal |
-| `/api/v1/deals/:dealId` | GET | Get full deal state |
-| `/api/v1/deals/:dealId/status` | GET | Lightweight status check |
-| `/api/v1/deals/:dealId/deliver` | POST | Submit delivery for evaluation |
-| `/api/v1/deals/:dealId/dispute` | POST | Raise a dispute |
+### 6. Payment Release (Autonomous)
+On approval (or 48-hour silence), the agent calls `release()` on the escrow contract. It first attempts delegation redemption via Pimlico bundler, falling back to direct EOA transaction if the smart account lacks gas.
 
-### Reputation
+### 7. Dispute Mediation (Autonomous + Private)
+If the brand disputes, both parties submit evidence. The agent routes mediation through Venice AI for encrypted, private deliberation. Venice returns a ruling with percentage split, which the agent executes onchain via `rule()`.
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/v1/reputation/:wallet` | GET | Get wallet trust score |
+## Smart Contract
 
-### Create Deal Request
+**Escrow.sol** on Base Sepolia: `0xc7D90AD1fa90FedF26d18494228CE8AD5671E8f0`
 
-```json
-{
-  "party_a": "0xBuyerWallet",
-  "party_b": "0xSellerWallet",
-  "deliverable": "Description of work to be done",
-  "amount": "50",
-  "deadline_seconds": 86400,
-  "evaluation_criteria": "What counts as valid delivery",
-  "webhook_url": "https://your-server.com/webhooks/equalizer"
-}
-```
+Functions the agent can call autonomously:
+- `release(dealId)` — full payment to creator
+- `refund(dealId)` — full refund to brand
+- `rule(dealId, creatorBps)` — split payment (dispute resolution)
+- `autoRelease(dealId)` — release after 48hr silence
+- `submitDelivery(dealId)` — mark delivery submitted onchain
 
-### Create Deal Response
+## Delegation Framework
 
-```json
-{
-  "deal_id": "A1B2C3D4",
-  "escrow_address": "0x...",
-  "payment_instructions": {
-    "send_usdc_to": "0x...",
-    "amount": "50",
-    "chain_id": 84532,
-    "x402_endpoint": "https://your-deployment.railway.app/pay/A1B2C3D4"
-  },
-  "status": "pending_funding",
-  "webhook_secret": "abc123..."
-}
-```
+The agent uses MetaMask's Delegation Toolkit (ERC-7710) to act on behalf of the brand:
 
-## MCP Server Setup
+1. Brand signs an EIP-712 delegation scoped to 5 escrow functions only
+2. Agent's DeleGator smart account (`0xFbF6c46D0A32DbD788E4E0c2F0276e0F7bd8C5c0`) redeems via Pimlico bundler
+3. Caveats enforce: AllowedTargets (escrow only) + AllowedMethods (5 functions only)
+4. If bundler fails (insufficient gas), falls back to direct EOA calls
 
-Add to your Claude Code or MCP-compatible agent:
+## MCP Server (Agent-to-Agent)
 
-```json
-{
-  "mcpServers": {
-    "equalizer": {
-      "command": "npx",
-      "args": ["tsx", "mcp/server.ts"],
-      "env": {
-        "EQUALIZER_API_URL": "https://your-deployment.railway.app/api/v1",
-        "EQUALIZER_API_KEY": "eq_your_key_here"
-      }
-    }
-  }
-}
-```
-
-### Available Tools
+EQUALIZER exposes an MCP server so other AI agents can create and manage deals programmatically:
 
 | Tool | Description |
 |------|-------------|
 | `equalizer_create_deal` | Create an enforced deal |
-| `equalizer_fund_deal` | Get x402 payment endpoint (key stays local) |
+| `equalizer_fund_deal` | Get x402 payment endpoint |
 | `equalizer_submit_delivery` | Submit work for AI evaluation |
 | `equalizer_check_deal` | Check deal status |
 | `equalizer_get_reputation` | Get wallet trust score |
 
-## x402 Payment Integration
+## Key Design Principle
 
-EQUALIZER uses x402 for agent-native payments:
-
-1. Create deal -> response includes `x402_endpoint`
-2. GET the endpoint -> receive 402 with payment requirements
-3. Pay via x402 protocol (USDC on Base Sepolia)
-4. EQUALIZER confirms onchain -> deal marked FUNDED
-5. Webhook fires `deal.funded` event
-
-## Webhook Events
-
-Provide `webhook_url` when creating a deal to receive event notifications.
-
-| Event | Fires When |
-|-------|-----------|
-| `deal.funded` | Escrow receives payment |
-| `deal.delivery_submitted` | Seller submits work |
-| `deal.evaluation_complete` | AI finishes evaluation |
-| `deal.payment_released` | Payment auto-released to seller |
-| `deal.disputed` | Buyer raises dispute |
-| `deal.dispute_resolved` | Mediation complete |
-
-All webhooks include `X-Equalizer-Signature` (HMAC-SHA256) for verification.
-
-## Rate Limits
-
-- 100 requests/hour per API key
-- 100 deals/month on free tier
+EQUALIZER doesn't answer "can you trust this agent?" — it makes the question irrelevant. When terms are locked onchain before work begins, when payment is held by a contract neither party controls, when silence defaults to payment — trust becomes unnecessary.
