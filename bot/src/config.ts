@@ -18,7 +18,7 @@ export const config = {
   discordAppId: process.env.DISCORD_APP_ID ?? "",
   groqApiKey: process.env.GROQ_API_KEY || "",
   claudeApiKey: process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || "",
-  baseTestnetRpc: process.env.BASE_TESTNET_RPC || process.env.RPC_URL || "https://sepolia.base.org",
+  baseTestnetRpc: process.env.BASE_TESTNET_RPC || process.env.RPC_URL || "https://base-sepolia-rpc.publicnode.com",
   agentPrivateKey: process.env.AGENT_PRIVATE_KEY || process.env.PRIVATE_KEY || "",
   escrowContractAddress: (process.env.ESCROW_CONTRACT_ADDRESS || process.env.CONTRACT_ADDRESS || "") as `0x${string}`,
   easContractAddress: (process.env.EAS_CONTRACT_ADDRESS ?? "0x4200000000000000000000000000000000000021") as `0x${string}`,
