@@ -1,6 +1,6 @@
 import { Bot } from "grammy";
 import { getDeal, updateDeal } from "../services/store.js";
-import { DealStatus } from "../types/deal.js";
+import { DealStatus, type SupportedChain } from "../types/deal.js";
 import { walletRegistry, usernameToTgId } from "../commands/wallet.js";
 import { getPaymentMessage } from "../services/x402.js";
 import { type Hex } from "viem";
@@ -51,35 +51,18 @@ export function registerConfirmationHandler(bot: Bot) {
     await ctx.answerCallbackQuery("Confirmed!");
 
     if (newStatus === DealStatus.Confirmed) {
-      // Look up creator's wallet address via username → tgId → wallet
-      const creatorTgId = usernameToTgId.get(deal.terms.creatorUsername);
-      const creatorAddress = creatorTgId ? (walletRegistry.get(creatorTgId) as Hex | undefined) ?? null : null;
-
-      if (!creatorAddress) {
-        await ctx.reply(
-          `🤝 *Deal \\#${dealId} confirmed\\!*\n\n` +
-          `${deal.terms.creatorUsername}: drop your ETH wallet address here so we can set up the escrow\\.`,
-          { parse_mode: "MarkdownV2" }
-        );
-        return;
-      }
-
-      const priceNum = parseFloat(deal.terms.price.replace(/[^0-9.]/g, ""));
-      const { text: paymentMsg, paymentUrl, usdValue } = await getPaymentMessage(
-        dealId,
-        priceNum,
-        deal.terms.currency,
-        deal.terms.brandUsername,
-        deal.terms.creatorUsername
-      );
-
-      const btnLabel = usdValue < 1 ? `$${usdValue.toFixed(4)}` : `$${usdValue.toFixed(2)}`;
+      // Ask brand to pick a chain before showing payment link
       await ctx.reply(
-        `🤝 *Deal \\#${dealId} confirmed by both parties\\!*\n\n` + paymentMsg,
+        `🤝 *Deal \\#${dealId} confirmed by both parties\\!*\n\n` +
+        `⛓ *Which blockchain for the escrow?*\n\n` +
+        `Choose where funds will be locked:`,
         {
           parse_mode: "MarkdownV2",
           reply_markup: {
-            inline_keyboard: [[{ text: `💳 Pay ${btnLabel}`, url: paymentUrl }]],
+            inline_keyboard: [[
+              { text: "🔵 Base Sepolia (ETH)", callback_data: `chain_select:base-sepolia:${dealId}` },
+              { text: "⚫ X Layer (OKB)", callback_data: `chain_select:xlayer:${dealId}` },
+            ]],
           },
         }
       );
@@ -92,6 +75,50 @@ export function registerConfirmationHandler(bot: Bot) {
         { parse_mode: "MarkdownV2" }
       );
     }
+  });
+
+  bot.callbackQuery(/^chain_select:(.+):(.+)$/, async (ctx) => {
+    const chain = ctx.match[1] as SupportedChain;
+    const dealId = ctx.match[2];
+    const deal = getDeal(dealId);
+    if (!deal) { await ctx.answerCallbackQuery("Deal not found."); return; }
+
+    updateDeal(dealId, { chain });
+    await ctx.answerCallbackQuery(`Chain set to ${chain === "xlayer" ? "X Layer" : "Base Sepolia"}`);
+
+    // Look up creator's wallet
+    const creatorTgId = usernameToTgId.get(deal.terms.creatorUsername);
+    const creatorAddress = creatorTgId ? (walletRegistry.get(creatorTgId) as Hex | undefined) ?? null : null;
+    const chainLabel = chain === "xlayer" ? "X Layer \\(OKB\\)" : "Base Sepolia \\(ETH\\)";
+
+    if (!creatorAddress) {
+      await ctx.reply(
+        `⛓ *Escrow chain: ${chainLabel}*\n\n` +
+        `${deal.terms.creatorUsername}: drop your wallet address here so we can set up the escrow\\.`,
+        { parse_mode: "MarkdownV2" }
+      );
+      return;
+    }
+
+    const priceNum = parseFloat(deal.terms.price.replace(/[^0-9.]/g, ""));
+    const { text: paymentMsg, paymentUrl, usdValue } = await getPaymentMessage(
+      dealId,
+      priceNum,
+      deal.terms.currency,
+      deal.terms.brandUsername,
+      deal.terms.creatorUsername
+    );
+
+    const btnLabel = usdValue < 1 ? `$${usdValue.toFixed(4)}` : `$${usdValue.toFixed(2)}`;
+    await ctx.reply(
+      `⛓ *Chain: ${chainLabel}*\n\n` + paymentMsg,
+      {
+        parse_mode: "MarkdownV2",
+        reply_markup: {
+          inline_keyboard: [[{ text: `💳 Pay ${btnLabel}`, url: paymentUrl }]],
+        },
+      }
+    );
   });
 
   bot.callbackQuery(/^reject:(.+)$/, async (ctx) => {

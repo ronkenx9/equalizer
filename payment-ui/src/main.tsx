@@ -6,13 +6,23 @@ import '@rainbow-me/rainbowkit/styles.css';
 
 import { getDefaultConfig, RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
 import { WagmiProvider } from 'wagmi';
-import { baseSepolia } from 'wagmi/chains';
+import { baseSepolia, defineChain } from 'wagmi/chains';
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
+
+export const xlayer = defineChain({
+  id: 196,
+  name: 'X Layer',
+  nativeCurrency: { name: 'OKB', symbol: 'OKB', decimals: 18 },
+  rpcUrls: { default: { http: ['https://rpc.xlayer.tech'] } },
+  blockExplorers: {
+    default: { name: 'OKX Explorer', url: 'https://www.okx.com/web3/explorer/xlayer' },
+  },
+});
 
 const config = getDefaultConfig({
   appName: 'EQUALIZER',
-  projectId: 'YOUR_PROJECT_ID', // Ideal to have a project ID for WalletConnect, but works without for demo
-  chains: [baseSepolia],
+  projectId: 'YOUR_PROJECT_ID',
+  chains: [baseSepolia, xlayer],
   ssr: false,
 });
 

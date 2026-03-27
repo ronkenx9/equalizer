@@ -6,9 +6,11 @@ import {
   useWaitForTransactionReceipt,
   useChainId,
   useSendTransaction,
+  useSwitchChain,
 } from 'wagmi';
 import { type Hex } from 'viem';
 import { baseSepolia } from 'wagmi/chains';
+import { xlayer } from './main';
 import { DelegationStep } from './components/DelegationStep';
 
 const ERC20_ABI = [
@@ -82,6 +84,7 @@ function formatAmount(amount: number, symbol: string): string {
 function App() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
+  const { switchChain } = useSwitchChain();
 
   // ERC20 transfer
   const {
@@ -114,6 +117,7 @@ function App() {
   const [settled, setSettled] = useState(false);
   const [selectedToken, setSelectedToken] = useState<string>('USDC');
   const [delegationSigned, setDelegationSigned] = useState(false);
+  const [dealChain, setDealChain] = useState<'base-sepolia' | 'xlayer'>('base-sepolia');
 
   // Parse supported tokens from deal data
   const supportedTokens: TokenAmount[] = dealData?.extra?.supportedTokens ?? [];
@@ -139,6 +143,12 @@ function App() {
       return;
     }
     setDealId(id);
+
+    // Fetch chain info from deposit instructions (lightweight)
+    fetch(`/pay/${id}/onchain`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((info) => { if (info?.chain) setDealChain(info.chain); })
+      .catch(() => {});
 
     fetch(`/pay/${id}`, { headers: { Accept: 'application/json' } })
       .then((res) => {
@@ -174,14 +184,18 @@ function App() {
     if (!dealData || !dealId) return;
 
     if (activeToken && activeToken.address === null) {
-      // Native ETH — call createDeal() on the escrow contract via onchain instructions
+      // Native token (ETH / OKB) — call createDeal() on the escrow contract
       const res = await fetch(`/pay/${dealId}/onchain`);
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'Failed to fetch deposit instructions' }));
-        alert(`Cannot pay with ETH right now: ${err.error || 'Try again in a moment'}`);
+        alert(`Cannot pay right now: ${err.error || 'Try again in a moment'}`);
         return;
       }
       const instructions = await res.json();
+      // Sync chain state from instructions
+      if (instructions.chain && instructions.chain !== dealChain) {
+        setDealChain(instructions.chain);
+      }
       sendTransaction({
         to: instructions.to as Hex,
         data: instructions.data as Hex,
@@ -200,7 +214,10 @@ function App() {
     }
   };
 
-  const isCorrectChain = chainId === baseSepolia.id;
+  const requiredChainId = dealChain === 'xlayer' ? xlayer.id : baseSepolia.id;
+  const requiredChainName = dealChain === 'xlayer' ? 'X Layer' : 'Base Sepolia';
+  const isCorrectChain = chainId === requiredChainId;
+  const supportsDelegate = dealChain !== 'xlayer';
 
   // --- Loading state ---
   if (loading) {
@@ -391,9 +408,15 @@ function App() {
                 <span className="text-amber-400 text-lg">⚠</span>
               </div>
               <p className="text-amber-400 text-sm font-medium mb-1">Wrong Network</p>
-              <p className="text-[var(--color-text-dim)] text-xs">Switch to Base Sepolia to continue</p>
+              <p className="text-[var(--color-text-dim)] text-xs mb-3">Switch to {requiredChainName} to continue</p>
+              <button
+                onClick={() => switchChain({ chainId: requiredChainId })}
+                className="btn-glow w-full bg-amber-500 text-black font-semibold py-2.5 rounded-lg text-sm"
+              >
+                Switch to {requiredChainName}
+              </button>
             </div>
-          ) : !delegationSigned ? (
+          ) : !delegationSigned && supportsDelegate ? (
             <div>
               {/* Step 2: Sign Delegation (before funding) */}
               <div className="mb-3">

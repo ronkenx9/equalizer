@@ -56,11 +56,14 @@ export interface DealRuling {
   reasoning: string;
 }
 
+export type SupportedChain = "base-sepolia" | "xlayer";
+
 export interface DealState {
   id: string;
   chatId: number;
   terms: DealTerms;
   status: DealStatus;
+  chain?: SupportedChain;
   onChainId?: `0x${string}`;
   delivery?: string;
   deliveryEvaluation?: {

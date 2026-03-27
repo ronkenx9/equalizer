@@ -84,13 +84,13 @@ export function registerDisputeHandler(bot: Bot) {
         let txHash = "";
         try {
           if (ruling.ruling === "release") {
-            txHash = await releaseFunds(deal.id);
+            txHash = await releaseFunds(deal.id, deal.chain);
           } else if (ruling.ruling === "refund") {
-            txHash = await refundFunds(deal.id);
+            txHash = await refundFunds(deal.id, deal.chain);
           } else {
-            txHash = await executeRuling(deal.id, ruling.creatorShare);
+            txHash = await executeRuling(deal.id, ruling.creatorShare, deal.chain);
           }
-          txUrl = explorerTxUrl(txHash);
+          txUrl = explorerTxUrl(txHash, deal.chain);
 
           // Log decision with private reasoning and tx hash
           logAgentDecision(deal.id, "Dispute mediated", "dispute_ruling",
@@ -124,7 +124,7 @@ export function registerDisputeHandler(bot: Bot) {
         let easLine = "";
         try {
           const amountWei = parseEther(deal.terms.price.replace(/[^0-9.]/g, ""));
-          const onChainDeal = await getDealFromChain(deal.id).catch(() => null);
+          const onChainDeal = await getDealFromChain(deal.id, deal.chain).catch(() => null);
           const outcome = ruling.ruling === "refund" ? "refunded" as const : ruling.ruling === "split" ? "split" as const : "completed" as const;
           const attestationUID = await mintAttestation({
             dealId: deal.id,
@@ -133,6 +133,7 @@ export function registerDisputeHandler(bot: Bot) {
             amountWei,
             deliverable: deal.terms.deliverable,
             outcome,
+            chain: deal.chain,
           });
           if (attestationUID) {
             easLine = `\n[View attestation](${easExplorerUrl(attestationUID)})\n`;

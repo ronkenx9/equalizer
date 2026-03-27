@@ -123,7 +123,13 @@ export async function mintAttestation(params: {
   amountWei: bigint;
   deliverable: string;
   outcome: "completed" | "refunded" | "split";
+  chain?: string;
 }): Promise<string> {
+  // EAS is only deployed on Base (OP Stack) — skip for other chains
+  if (params.chain && params.chain !== "base-sepolia") {
+    console.log(`[EAS] Skipping attestation — not supported on ${params.chain}`);
+    return "";
+  }
   if (!schemaUID) {
     console.warn("EAS schema UID not set — skipping attestation. Call registerSchema() first or set EAS_SCHEMA_UID.");
     return "";

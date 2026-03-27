@@ -4,7 +4,7 @@ import { createDeal, getActiveDealsByChat, updateDeal, getDeal } from "../servic
 import { DealStatus } from "../types/deal.js";
 import { formatDealCard } from "../utils/format.js";
 import { walletRegistry, usernameToTgId } from "../commands/wallet.js";
-import { getDepositInstructions, explorerTxUrl, submitDeliveryOnChain, releaseFunds } from "../services/chain.js";
+import { getDepositInstructions, explorerTxUrl, submitDeliveryOnChain, releaseFunds, getNativeToken, getChainConfig } from "../services/chain.js";
 import { toDealIdBytes32 } from "../utils/dealId.js";
 import { evaluateDelivery, evaluateDeliveryWithCriteria, detectApprovalIntent } from "../services/claude.js";
 import { getDisputeWindowEnd } from "../utils/timer.js";
@@ -152,15 +152,17 @@ export function registerMessageHandler(bot: Bot) {
 
         const instructions = getDepositInstructions(
           deal.id, creatorAddress, effectiveDeadline,
-          deal.terms.disputeWindowSeconds, termsHash, amountEth
+          deal.terms.disputeWindowSeconds, termsHash, amountEth, deal.chain
         );
 
         const esc = (s: string) => s.replace(/([_*[\]()~`>#+\-=|{}.!])/g, "\\$1");
+        const nativeToken = getNativeToken(deal.chain);
+        const chainLabel = deal.chain === "xlayer" ? "X Layer" : "Base Sepolia";
         await ctx.reply(
-          `📋 *Direct ETH deposit details:*\n\n` +
+          `📋 *Direct ${nativeToken} deposit details:*\n\n` +
           `Contract: \`${instructions.to}\`\n` +
-          `Amount: \`${amountEth} ETH\` \\(≈ \\$${esc(String(priceNum))} @ \\$${esc(ethPrice.toLocaleString())}/ETH\\)\n` +
-          `Network: Base Sepolia\n\n` +
+          `Amount: \`${amountEth} ${nativeToken}\` \\(≈ \\$${esc(String(priceNum))} @ \\$${esc(ethPrice.toLocaleString())}/${nativeToken}\\)\n` +
+          `Network: ${esc(chainLabel)}\n\n` +
           `_Send this exact amount to the contract address\\. The agent will detect your deposit automatically\\._`,
           { parse_mode: "MarkdownV2" }
         );
@@ -220,8 +222,8 @@ export function registerMessageHandler(bot: Bot) {
           // Submit on-chain (best-effort — don't block deal lifecycle)
           let txUrl = "";
           try {
-            const txHash = await submitDeliveryOnChain(deal.id);
-            txUrl = explorerTxUrl(txHash);
+            const txHash = await submitDeliveryOnChain(deal.id, deal.chain);
+            txUrl = explorerTxUrl(txHash, deal.chain);
           } catch (err: any) {
             console.error("Failed to submit delivery onchain (non-blocking):", err.shortMessage || err.message);
           }
@@ -296,8 +298,8 @@ export function registerMessageHandler(bot: Bot) {
           let txHash = "";
           let txUrl = "";
           try {
-            txHash = await releaseFunds(deal.id);
-            txUrl = explorerTxUrl(txHash);
+            txHash = await releaseFunds(deal.id, deal.chain);
+            txUrl = explorerTxUrl(txHash, deal.chain);
           } catch (err: any) {
             console.error("[ExplicitApproval] Release failed onchain (non-blocking):", err.shortMessage || err.message);
           }

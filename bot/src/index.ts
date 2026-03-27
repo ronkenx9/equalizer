@@ -276,7 +276,8 @@ app.get("/pay/:dealId/onchain", async (req, res) => {
       effectiveDeadline,
       deal.terms.disputeWindowSeconds,
       termsHash,
-      ethAmount
+      ethAmount,
+      deal.chain
     );
 
     res.json({
@@ -284,6 +285,7 @@ app.get("/pay/:dealId/onchain", async (req, res) => {
       data: instructions.data,
       value: instructions.valueBigInt.toString(),
       ethAmount,
+      chain: deal.chain ?? "base-sepolia",
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

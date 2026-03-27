@@ -37,8 +37,8 @@ export function registerSubmit(bot: Bot) {
     // Submit delivery on-chain
     let txUrl = "";
     try {
-      const txHash = await submitDeliveryOnChain(deal.id);
-      txUrl = explorerTxUrl(txHash);
+      const txHash = await submitDeliveryOnChain(deal.id, deal.chain);
+      txUrl = explorerTxUrl(txHash, deal.chain);
     } catch (err: any) {
       console.error("Failed to submit delivery onchain:", err);
       // Continue anyway — delivery is recorded off-chain

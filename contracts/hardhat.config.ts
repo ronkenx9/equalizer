@@ -22,6 +22,11 @@ const config: HardhatUserConfig = {
       chainId: 1660990954,
       accounts: [process.env.AGENT_PRIVATE_KEY ?? ""],
     },
+    xlayer: {
+      url: process.env.XLAYER_RPC ?? "https://rpc.xlayer.tech",
+      chainId: 196,
+      accounts: process.env.AGENT_PRIVATE_KEY ? [process.env.AGENT_PRIVATE_KEY] : [],
+    },
   },
   etherscan: {
     apiKey: process.env.BASESCAN_API_KEY ?? "",

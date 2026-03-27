@@ -34,4 +34,7 @@ export const config = {
   bundlerRpcUrl: process.env.PIMLICO_API_KEY
     ? `https://api.pimlico.io/v2/84532/rpc?apikey=${process.env.PIMLICO_API_KEY}`
     : "",
+  // X Layer (chain ID 196)
+  xlayerRpc: process.env.XLAYER_RPC || "https://rpc.xlayer.tech",
+  xlayerEscrowAddress: (process.env.XLAYER_ESCROW_ADDRESS || "") as `0x${string}`,
 };

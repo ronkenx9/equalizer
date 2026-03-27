@@ -25,7 +25,7 @@ export function startDealMonitor(bot: Bot) {
             try {
                 // Poll for funding on-chain (similar to timeout.ts)
                 if (deal.status === DealStatus.Confirmed) {
-                    const onChain = await checkDealFunded(deal.id);
+                    const onChain = await checkDealFunded(deal.id, deal.chain);
                     if (onChain && onChain.funded) {
                         updateDeal(deal.id, {
                             status: DealStatus.Funded,
@@ -91,8 +91,8 @@ export function startDealMonitor(bot: Bot) {
                     let txUrl = "";
                     let txHash = "";
                     try {
-                        txHash = await autoReleaseOnChain(deal.id);
-                        txUrl = explorerTxUrl(txHash);
+                        txHash = await autoReleaseOnChain(deal.id, deal.chain);
+                        txUrl = explorerTxUrl(txHash, deal.chain);
                     } catch (err: any) {
                         console.error(`Auto-release onchain failed for deal ${deal.id} (non-blocking):`, err.shortMessage || err.message);
                     }
@@ -119,7 +119,7 @@ export function startDealMonitor(bot: Bot) {
                     let easLine = "";
                     try {
                         const amountWei = parseEther(deal.terms.price.replace(/[^0-9.]/g, ""));
-                        const onChainDeal = await getDealFromChain(deal.id).catch(() => null);
+                        const onChainDeal = await getDealFromChain(deal.id, deal.chain).catch(() => null);
                         const attestationUID = await mintAttestation({
                             dealId: deal.id,
                             brand: onChainDeal?.brand ?? "0x0000000000000000000000000000000000000000",
@@ -127,6 +127,7 @@ export function startDealMonitor(bot: Bot) {
                             amountWei,
                             deliverable: deal.terms.deliverable,
                             outcome: "completed",
+                            chain: deal.chain,
                         });
                         if (attestationUID) {
                             easLine = `\n[View attestation](${easExplorerUrl(attestationUID)})\n`;

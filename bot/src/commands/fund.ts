@@ -71,7 +71,7 @@ export function registerFund(bot: Bot) {
         ethPrice = conversion.ethPrice;
       }
 
-      const txHash = await createDealOnChain(dealId, creatorAddress, effectiveDeadline, deal.terms.disputeWindowSeconds, termsHash, amountEth);
+      const txHash = await createDealOnChain(dealId, creatorAddress, effectiveDeadline, deal.terms.disputeWindowSeconds, termsHash, amountEth, deal.chain);
 
       const onChainId = toDealIdBytes32(dealId);
       updateDeal(dealId, {
@@ -80,7 +80,7 @@ export function registerFund(bot: Bot) {
         fundedAt: Date.now(),
       });
 
-      const txUrl = explorerTxUrl(txHash);
+      const txUrl = explorerTxUrl(txHash, deal.chain);
       await ctx.reply(
         `🔒 *Deal \\#${dealId} locked onchain\\!*\n\n` +
         `*${priceLabel} ${currency}* \\(${amountEth} ETH\\) secured in escrow\\.\n` +
