@@ -287,7 +287,7 @@ function App() {
             <div className="flex justify-between items-center text-xs">
               <span className="text-[var(--color-text-dim)]">Transaction</span>
               <a
-                href={`https://sepolia.basescan.org/tx/${txHash}`}
+                href={dealChain === 'xlayer' ? `https://www.okx.com/web3/explorer/xlayer/tx/${txHash}` : `https://sepolia.basescan.org/tx/${txHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mono text-[var(--color-gold)] hover:text-[var(--color-gold-bright)] transition-colors text-[11px]"
@@ -440,7 +440,7 @@ function App() {
                     {address?.slice(0, 6)}...{address?.slice(-4)}
                   </span>
                 </div>
-                <span className="text-[10px] text-[var(--color-text-dim)]">Base Sepolia</span>
+                <span className="text-[10px] text-[var(--color-text-dim)]">{requiredChainName}</span>
               </div>
             </div>
           ) : (
@@ -473,7 +473,7 @@ function App() {
                     {address?.slice(0, 6)}...{address?.slice(-4)}
                   </span>
                 </div>
-                <span className="text-[10px] text-[var(--color-text-dim)]">Base Sepolia</span>
+                <span className="text-[10px] text-[var(--color-text-dim)]">{requiredChainName}</span>
               </div>
             </div>
           )}
@@ -524,7 +524,7 @@ function App() {
                 </div>
               )}
               <p className="text-[9px] text-[var(--color-text-dim)] text-center">
-                Base Sepolia · {displayAmount} {displaySymbol}
+                {requiredChainName} · {displayAmount} {displaySymbol}
                 {activeToken ? ` · ${activeToken.rawAmount} raw units` : ''}
               </p>
             </div>

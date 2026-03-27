@@ -6,7 +6,8 @@ import '@rainbow-me/rainbowkit/styles.css';
 
 import { getDefaultConfig, RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
 import { WagmiProvider } from 'wagmi';
-import { baseSepolia, defineChain } from 'wagmi/chains';
+import { baseSepolia } from 'wagmi/chains';
+import { defineChain } from 'viem';
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 
 export const xlayer = defineChain({
