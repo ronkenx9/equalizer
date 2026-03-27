@@ -92,12 +92,18 @@ setPaymentCallback(async (dealId: string, txHash: string) => {
     escrow_address: config.escrowContractAddress || "",
   });
 
+  const isXLayer = deal.chain === "xlayer";
+  const tokenLabel = isXLayer ? "OKB" : "USDC";
+  const explorerUrl = isXLayer
+    ? `https://www.okx.com/web3/explorer/xlayer/tx/${txHash}`
+    : `https://sepolia.basescan.org/tx/${txHash}`;
+
   try {
     await tgBot.api.sendMessage(
       deal.chatId,
-      `✅ *Escrow funded via USDC\\!*\n\n` +
+      `✅ *Escrow funded via ${tokenLabel}\\!*\n\n` +
       `Deal \\#${dealId} is now locked onchain\\.\n` +
-      `[View transaction](https://sepolia.basescan.org/tx/${txHash})\n\n` +
+      `[View transaction](${explorerUrl})\n\n` +
       `${deal.terms.creatorUsername}: deliver by the deadline, then just say "I'm done" or share your deliverable here\\.`,
       { parse_mode: "MarkdownV2" }
     );
@@ -126,12 +132,17 @@ setDealFundedCallback(async (dealId: string, txHash: string, amount: string) => 
 
   if (!tgBot) return;
 
+  const isXLayer = deal.chain === "xlayer";
+  const nativeToken = isXLayer ? "OKB" : "ETH";
+  const txUrl = isXLayer
+    ? `https://www.okx.com/web3/explorer/xlayer/tx/${txHash}`
+    : `https://sepolia.basescan.org/tx/${txHash}`;
+
   try {
-    const txUrl = `https://sepolia.basescan.org/tx/${txHash}`;
     await tgBot.api.sendMessage(
       deal.chatId,
       `🔒 *Escrow funded\\!*\n\n` +
-      `${deal.terms.brandUsername} deposited *${amount} ETH* directly to the contract\\.\n` +
+      `${deal.terms.brandUsername} deposited *${amount} ${nativeToken}* directly to the contract\\.\n` +
       `[View transaction](${txUrl})\n\n` +
       `The smart contract holds the funds now — neither party can touch them\\.\n\n` +
       `${deal.terms.creatorUsername}: deliver by the deadline, then just say "I'm done" or share your work here\\.`,
@@ -228,7 +239,8 @@ app.get("/pay/:dealId", (req, res) => {
 
   if (isX402Client) {
     // x402 protocol: return 402 with payment requirements
-    const requirements = getPaymentRequirements(dealId);
+    const deal = getDeal(dealId);
+    const requirements = getPaymentRequirements(dealId, deal?.chain);
     res.status(402).json({
       paymentRequirements: [requirements],
       message: `Payment required: $${payment.usdValue.toFixed(2)} to fund Deal #${dealId}`,
@@ -338,8 +350,8 @@ app.get("/.well-known/x402", (_req, res) => {
     name: "EQUALIZER",
     description: "Autonomous deal enforcement agent — escrow, mediation, attestation",
     version: "1.0.0",
-    networks: ["eip155:84532"], // Base Sepolia
-    assets: ["USDC"],
+    networks: ["eip155:84532", "eip155:196"], // Base Sepolia + X Layer mainnet
+    assets: ["USDC", "OKB"],
     endpoints: [
       {
         path: "/pay/:dealId",

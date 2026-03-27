@@ -12,6 +12,16 @@
 import { config } from "../config.js";
 import { convertToTokenAmounts } from "./price.js";
 import { SUPPORTED_TOKENS, type TokenConfig } from "./tokens.js";
+import type { SupportedChain } from "../types/deal.js";
+
+// x402 network IDs per chain
+const CHAIN_NETWORK: Record<SupportedChain, string> = {
+  "base-sepolia": "eip155:84532",
+  "xlayer": "eip155:196",
+};
+
+// Native OKB has no ERC-20 address on X Layer
+const XLAYER_OKB_PLACEHOLDER = "0x0000000000000000000000000000000000000000";
 
 export interface TokenAmount {
   symbol: string;
@@ -107,25 +117,40 @@ export function clearPendingPayment(dealId: string) {
  * Get the x402 payment requirements for a deal.
  * Returns multi-token support info in the 402 response.
  */
-export function getPaymentRequirements(dealId: string) {
+export function getPaymentRequirements(dealId: string, chain?: SupportedChain) {
   const payment = pendingPayments.get(dealId);
   if (!payment) return null;
 
-  // Default to USDC for x402 protocol compatibility
-  const usdc = payment.supportedTokens.find((t) => t.symbol === "USDC");
+  const resolvedChain: SupportedChain = chain ?? "base-sepolia";
+  const network = CHAIN_NETWORK[resolvedChain];
+  const isXLayer = resolvedChain === "xlayer";
+
+  // X Layer deals use OKB (native); Base Sepolia deals use USDC
+  const preferredToken = isXLayer
+    ? payment.supportedTokens.find((t) => t.symbol === "OKB") ?? payment.supportedTokens[0]
+    : payment.supportedTokens.find((t) => t.symbol === "USDC") ?? payment.supportedTokens[0];
+
+  const contractAddress = isXLayer
+    ? config.xlayerEscrowAddress
+    : (config.yieldEscrowAddress || config.escrowContractAddress || config.agentWalletAddress);
+
+  const assetAddress = isXLayer
+    ? XLAYER_OKB_PLACEHOLDER
+    : (preferredToken?.address ?? "0x036CbD53842c5426634e7929541eC2318f3dCF7e");
 
   return {
     scheme: "exact",
-    network: "eip155:84532",
-    maxAmountRequired: usdc?.rawAmount ?? "0",
+    network,
+    maxAmountRequired: preferredToken?.rawAmount ?? "0",
     resource: `${config.botPublicUrl}/pay/${dealId}`,
     description: `Fund EQUALIZER Deal #${dealId}`,
     mimeType: "application/json",
-    payTo: config.yieldEscrowAddress || config.escrowContractAddress || config.agentWalletAddress,
+    payTo: contractAddress,
     maxTimeoutSeconds: 300,
-    asset: usdc?.address ?? "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    asset: assetAddress,
     extra: {
       dealId,
+      chain: resolvedChain,
       name: "EQUALIZER Escrow Payment",
       usdValue: payment.usdValue,
       originalAmount: payment.originalAmount,
