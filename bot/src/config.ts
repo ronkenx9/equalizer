@@ -34,7 +34,11 @@ export const config = {
   bundlerRpcUrl: process.env.PIMLICO_API_KEY
     ? `https://api.pimlico.io/v2/84532/rpc?apikey=${process.env.PIMLICO_API_KEY}`
     : "",
-  // X Layer (chain ID 196)
+  // X Layer Mainnet (chain ID 196)
   xlayerRpc: process.env.XLAYER_RPC || "https://rpc.xlayer.tech",
-  xlayerEscrowAddress: (process.env.XLAYER_ESCROW_ADDRESS || "") as `0x${string}`,
+  xlayerEscrowAddress: (process.env.XLAYER_ESCROW_CONTRACT_ADDRESS || "") as `0x${string}`,
+  // OKX Onchain OS API credentials (okx-onchain-gateway, okx-security, etc.)
+  xlayerDeveloperKey: process.env.XLAYER_DEVELOPER_KEY || "",
+  xlayerSecretKey: process.env.XLAYER_SECRET_KEY || "",
+  okxPassphrase: process.env.OKX_PASSPHRASE || "",
 };

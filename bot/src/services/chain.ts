@@ -17,6 +17,7 @@ import { getDeal } from "./store.js";
 import { isSmartAccountReady } from "./smartAccount.js";
 import { redeemDealDelegation } from "./delegationManager.js";
 import type { SupportedChain } from "../types/deal.js";
+import { runXLayerPreflight } from "./onchainOS.js";
 
 // ── Chain Definitions ──────────────────────────────────
 
@@ -258,6 +259,12 @@ export async function releaseFunds(dealId: string, chain?: SupportedChain): Prom
     }
   }
   const wallet = getWalletClient(chain);
+  // ── Onchain OS preflight (X Layer only) ──
+  if (chain === "xlayer" && wallet.account) {
+    const calldata = encodeFunctionData({ abi: ESCROW_ABI, functionName: "release", args: [toDealIdBytes32(dealId)] });
+    const preflight = await runXLayerPreflight(wallet.account.address, getContractAddress(chain), calldata);
+    if (preflight && !preflight.safe) throw new Error(`[OnchainOS] ${preflight.reason}`);
+  }
   return wallet.writeContract({
     address: getContractAddress(chain),
     abi: ESCROW_ABI,
@@ -280,6 +287,12 @@ export async function refundFunds(dealId: string, chain?: SupportedChain): Promi
     }
   }
   const wallet = getWalletClient(chain);
+  // ── Onchain OS preflight (X Layer only) ──
+  if (chain === "xlayer" && wallet.account) {
+    const calldata = encodeFunctionData({ abi: ESCROW_ABI, functionName: "refund", args: [toDealIdBytes32(dealId)] });
+    const preflight = await runXLayerPreflight(wallet.account.address, getContractAddress(chain), calldata);
+    if (preflight && !preflight.safe) throw new Error(`[OnchainOS] ${preflight.reason}`);
+  }
   return wallet.writeContract({
     address: getContractAddress(chain),
     abi: ESCROW_ABI,

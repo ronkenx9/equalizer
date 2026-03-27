@@ -102,6 +102,33 @@
       "contract": "0x4200000000000000000000000000000000000021",
       "chain": "base-sepolia",
       "description": "Mints an EAS attestation recording deal outcome — permanent onchain receipt for both parties."
+    },
+    {
+      "name": "createDeal_xlayer",
+      "type": "onchain_write",
+      "contract": "0x02a51207f114b47DED4fa1597639344747eb4b4D",
+      "chain": "xlayer",
+      "chain_id": 196,
+      "function": "createDeal(bytes32,address,uint256,uint256,string)",
+      "description": "Creates a new deal on X Layer Mainnet. Brand deposits OKB as msg.value."
+    },
+    {
+      "name": "release_xlayer",
+      "type": "onchain_write",
+      "contract": "0x02a51207f114b47DED4fa1597639344747eb4b4D",
+      "chain": "xlayer",
+      "chain_id": 196,
+      "function": "release(bytes32)",
+      "description": "Arbiter releases payment on X Layer Mainnet (minus 2.5% fee)."
+    },
+    {
+      "name": "autoRelease_xlayer",
+      "type": "onchain_write",
+      "contract": "0x02a51207f114b47DED4fa1597639344747eb4b4D",
+      "chain": "xlayer",
+      "chain_id": 196,
+      "function": "autoRelease(bytes32)",
+      "description": "Permissionless auto-release on X Layer after dispute window closes."
     }
   ],
   "safety_guardrails": {
@@ -136,7 +163,10 @@
   "harness": "claude-code",
   "model": "claude-sonnet-4-6",
   "source_code": "https://github.com/ronkenx9/equalizer",
-  "platforms": ["telegram", "discord"],
+  "platforms": [
+    "telegram",
+    "discord"
+  ],
   "endpoints": {
     "agent_manifest": "/agent.json",
     "agent_log": "/agent_log.json",
