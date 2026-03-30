@@ -232,6 +232,19 @@ Built for **Synthesis Hackathon** and **PL Genesis**.
 - Synthesis registration: [`0x56c1d3c0...`](https://basescan.org/tx/0x56c1d3c078b8fd71732b117441c03f1920e1e0e7553b7e692577726993b69664)
 - EAS attestations: Minted per completed deal on Base Sepolia
 
+## Changelog
+
+### Synthesis Hackathon Submission (March 22)
+Core EQUALIZER protocol — Telegram bot,
+Discord adapter, escrow contract,
+x402 payments, MetaMask delegation,
+Venice disputes, EAS attestations.
+
+### Post-Synthesis (March 26-27)
+X Layer/Mantle integration for separate
+hackathon submission. Not part of
+Synthesis submission scope.
+
 ## License
 
 MIT
