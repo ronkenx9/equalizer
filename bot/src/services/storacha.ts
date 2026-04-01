@@ -1,3 +1,4 @@
+// @ts-ignore
 import { create } from "@storacha/client";
 import { config } from "../config.js";
 

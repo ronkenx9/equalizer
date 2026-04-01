@@ -18,6 +18,7 @@ import type { SupportedChain } from "../types/deal.js";
 const CHAIN_NETWORK: Record<SupportedChain, string> = {
   "base-sepolia": "eip155:84532",
   "xlayer": "eip155:196",
+  "flow-testnet": "eip155:545",
 };
 
 // Native OKB has no ERC-20 address on X Layer
