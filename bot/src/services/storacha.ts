@@ -1,5 +1,3 @@
-// @ts-ignore
-import { create } from "@storacha/client";
 import { config } from "../config.js";
 
 /**
@@ -32,8 +30,12 @@ export async function archiveDealToStoracha(artifact: DealArtifact): Promise<str
     try {
         console.log(`[Storacha] Initiating archival for deal ${artifact.dealId}...`);
 
+        // Use dynamic import to fix resolution issues in production/Railway
+        // This prevents boot-time ERR_MODULE_NOT_FOUND
+        // @ts-ignore
+        const { create } = await import("@storacha/client");
+
         // Initializing the client
-        // Note: The library handles principal/agent creation.
         const client = await create();
 
         // Convert artifact to a File/Blob for upload
