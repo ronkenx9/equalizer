@@ -5,11 +5,14 @@
     "bot",
     "payment-ui"
   ],
+  "overrides": {
+    "axios": "1.14.0"
+  },
   "scripts": {
     "build": "npm run build --workspace=payment-ui && npm run build --workspace=bot",
     "start": "npm start --workspace=bot"
   },
-  "overrides": {
-    "axios": "1.14.0"
+  "dependencies": {
+    "@storacha/client": "2.1.3"
   }
 }
