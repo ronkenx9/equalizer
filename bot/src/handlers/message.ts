@@ -12,6 +12,7 @@ import { logAgentDecision } from "../services/agentLog.js";
 import { type Hex } from "viem";
 import { usdToEth } from "../services/price.js";
 import { getPaymentMessage } from "../services/x402.js";
+import { finalizeDealCompletion } from "../services/completion.js";
 
 // Message buffer per chat
 const messageBuffers = new Map<number, { user: string; text: string; timestamp: number }[]>();
@@ -50,6 +51,15 @@ export function registerMessageHandler(bot: Bot) {
     if (!text || text.startsWith("/")) return;
 
     console.log(`[Message] ${username}: ${text}`);
+
+    // Append to active deals in this chat for permanent archiving
+    const logEntry = `[${new Date(timestamp).toISOString()}] ${username ?? `User#${userId}`}: ${text}`;
+    const activeForLog = getActiveDealsByChat(chatId);
+    for (const d of activeForLog) {
+      const logs = d.conversationLog ?? [];
+      logs.push(logEntry);
+      updateDeal(d.id, { conversationLog: logs });
+    }
 
     // ── 1. Wallet detection — "my wallet is 0x..." ──────
     const walletMatch = text.match(WALLET_PATTERN);
@@ -306,21 +316,9 @@ export function registerMessageHandler(bot: Bot) {
 
           updateDeal(deal.id, { status: DealStatus.Completed, completedAt: Date.now() });
 
-          logAgentDecision(
-            deal.id,
-            `Brand ${username} explicitly approved delivery: "${text.slice(0, 120)}"`,
-            "release",
-            "explicit_approval",
-            { onchain_tx_hash: txHash || "offchain_only" }
-          );
+          // Finalize archival (EAS + Storacha)
+          finalizeDealCompletion(bot, deal.id, txHash).catch(console.error);
 
-          const txLine = txUrl ? `\n[View transaction](${escapeMarkdown(txUrl)})` : "";
-          await ctx.reply(
-            `🎉 *Deal \\#${escapeMarkdown(deal.id)} — Complete\\!*\n\n` +
-            `Payment released to ${escapeMarkdown(deal.terms.creatorUsername)}\\.` +
-            txLine,
-            { parse_mode: "MarkdownV2" }
-          );
           return;
         }
       }

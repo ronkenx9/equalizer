@@ -20,10 +20,20 @@ export const xlayer = defineChain({
   },
 });
 
+export const flowTestnet = defineChain({
+  id: 545,
+  name: 'Flow Testnet',
+  nativeCurrency: { name: 'FLOW', symbol: 'FLOW', decimals: 18 },
+  rpcUrls: { default: { http: ['https://testnet.evm.nodes.onflow.org'] } },
+  blockExplorers: {
+    default: { name: 'Flowdiver', url: 'https://evm-testnet.flowdiver.io' },
+  },
+});
+
 const config = getDefaultConfig({
   appName: 'EQUALIZER',
   projectId: 'YOUR_PROJECT_ID',
-  chains: [baseSepolia, xlayer],
+  chains: [baseSepolia, xlayer, flowTestnet],
   ssr: false,
 });
 

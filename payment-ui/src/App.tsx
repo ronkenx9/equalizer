@@ -10,7 +10,7 @@ import {
 } from 'wagmi';
 import { type Hex } from 'viem';
 import { baseSepolia } from 'wagmi/chains';
-import { xlayer } from './main';
+import { xlayer, flowTestnet } from './main';
 import { DelegationStep } from './components/DelegationStep';
 
 const ERC20_ABI = [
@@ -117,7 +117,7 @@ function App() {
   const [settled, setSettled] = useState(false);
   const [selectedToken, setSelectedToken] = useState<string>('USDC');
   const [delegationSigned, setDelegationSigned] = useState(false);
-  const [dealChain, setDealChain] = useState<'base-sepolia' | 'xlayer'>('base-sepolia');
+  const [dealChain, setDealChain] = useState<'base-sepolia' | 'xlayer' | 'flow-testnet'>('base-sepolia');
 
   // Parse supported tokens from deal data
   const supportedTokens: TokenAmount[] = dealData?.extra?.supportedTokens ?? [];
@@ -148,7 +148,7 @@ function App() {
     fetch(`/pay/${id}/onchain`)
       .then((r) => r.ok ? r.json() : null)
       .then((info) => { if (info?.chain) setDealChain(info.chain); })
-      .catch(() => {});
+      .catch(() => { });
 
     fetch(`/pay/${id}`, { headers: { Accept: 'application/json' } })
       .then((res) => {
@@ -214,10 +214,10 @@ function App() {
     }
   };
 
-  const requiredChainId = dealChain === 'xlayer' ? xlayer.id : baseSepolia.id;
-  const requiredChainName = dealChain === 'xlayer' ? 'X Layer' : 'Base Sepolia';
+  const requiredChainId = dealChain === 'xlayer' ? xlayer.id : dealChain === 'flow-testnet' ? flowTestnet.id : baseSepolia.id;
+  const requiredChainName = dealChain === 'xlayer' ? 'X Layer' : dealChain === 'flow-testnet' ? 'Flow Testnet' : 'Base Sepolia';
   const isCorrectChain = chainId === requiredChainId;
-  const supportsDelegate = dealChain !== 'xlayer';
+  const supportsDelegate = dealChain === 'base-sepolia';
 
   // --- Loading state ---
   if (loading) {
@@ -287,7 +287,7 @@ function App() {
             <div className="flex justify-between items-center text-xs">
               <span className="text-[var(--color-text-dim)]">Transaction</span>
               <a
-                href={dealChain === 'xlayer' ? `https://www.okx.com/web3/explorer/xlayer/tx/${txHash}` : `https://sepolia.basescan.org/tx/${txHash}`}
+                href={dealChain === 'xlayer' ? `https://www.okx.com/web3/explorer/xlayer/tx/${txHash}` : dealChain === 'flow-testnet' ? `https://evm-testnet.flowdiver.io/tx/${txHash}` : `https://sepolia.basescan.org/tx/${txHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mono text-[var(--color-gold)] hover:text-[var(--color-gold-bright)] transition-colors text-[11px]"

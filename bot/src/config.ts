@@ -31,6 +31,7 @@ export const config = {
   ensRpcUrl: process.env.ENS_RPC_URL ?? "https://eth.llamarpc.com",
   // MetaMask Delegation + Pimlico bundler
   pimlicoApiKey: process.env.PIMLICO_API_KEY ?? "",
+  storachaApiKey: process.env.STORACHA_API_KEY || process.env.WEB3_STORAGE_KEY || "",
   bundlerRpcUrl: process.env.PIMLICO_API_KEY
     ? `https://api.pimlico.io/v2/84532/rpc?apikey=${process.env.PIMLICO_API_KEY}`
     : "",
@@ -41,4 +42,14 @@ export const config = {
   xlayerDeveloperKey: process.env.XLAYER_DEVELOPER_KEY || "",
   xlayerSecretKey: process.env.XLAYER_SECRET_KEY || "",
   okxPassphrase: process.env.OKX_PASSPHRASE || "",
+  // NEAR AI Identity
+  nearAiRegistryUrl: process.env.NEAR_AI_REGISTRY_URL || "https://app.near.ai/api/v1/agents/register",
+  nearAiToken: process.env.NEAR_AI_TOKEN || "",
+  nearAccountId: process.env.NEAR_ACCOUNT_ID || "",
+  // Lit Protocol TEE
+  litPkpPublicKey: process.env.LIT_PKP_PUBLIC_KEY || "",
+  useLitTEE: process.env.USE_LIT_TEE === "true",
+  // Flow EVM Testnet
+  flowTestnetRpc: process.env.FLOW_TESTNET_RPC || "https://testnet.evm.nodes.onflow.org",
+  flowEscrowAddress: (process.env.FLOW_ESCROW_CONTRACT_ADDRESS || "") as `0x${string}`,
 };

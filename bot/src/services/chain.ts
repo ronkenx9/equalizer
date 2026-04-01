@@ -31,8 +31,18 @@ const xlayer = defineChain({
   },
 });
 
+const flowTestnet = defineChain({
+  id: 545,
+  name: "Flow EVM Testnet",
+  nativeCurrency: { name: "FLOW", symbol: "FLOW", decimals: 18 },
+  rpcUrls: { default: { http: [config.flowTestnetRpc] } },
+  blockExplorers: {
+    default: { name: "FlowDiver", url: "https://evm-testnet.flowdiver.io" },
+  },
+});
+
 const CHAIN_CONFIG: Record<SupportedChain, {
-  viemChain: typeof baseSepolia | typeof xlayer;
+  viemChain: typeof baseSepolia | typeof xlayer | typeof flowTestnet;
   rpc: string;
   contractAddress: () => Hex;
   explorerTx: (hash: string) => string;
@@ -62,10 +72,21 @@ const CHAIN_CONFIG: Record<SupportedChain, {
     nativeToken: "OKB",
     supportsDelegation: false, // Pimlico bundler doesn't support X Layer — use direct EOA
   },
+  "flow-testnet": {
+    viemChain: flowTestnet,
+    rpc: config.flowTestnetRpc,
+    contractAddress: () => {
+      if (!config.flowEscrowAddress) throw new Error("FLOW_ESCROW_ADDRESS not set");
+      return config.flowEscrowAddress as Hex;
+    },
+    explorerTx: (hash) => `https://evm-testnet.flowdiver.io/tx/${hash}`,
+    nativeToken: "FLOW",
+    supportsDelegation: false, // Disabling delegation for Flow until bundler support is verified
+  },
 };
 
 function resolveChain(chain?: SupportedChain): SupportedChain {
-  return chain ?? "base-sepolia";
+  return chain ?? "flow-testnet";
 }
 
 export function getChainConfig(chain?: SupportedChain) {

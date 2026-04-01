@@ -56,7 +56,7 @@ export interface DealRuling {
   reasoning: string;
 }
 
-export type SupportedChain = "base-sepolia" | "xlayer";
+export type SupportedChain = "base-sepolia" | "xlayer" | "flow-testnet";
 
 export interface DealState {
   id: string;
@@ -89,6 +89,8 @@ export interface DealState {
   extractedCriteria?: ExtractedCriteria;
   criteriaResults?: CriterionResult[];
   easAttestationUid?: string;
+  storachaCid?: string;
+  conversationLog?: string[];
   delegation?: DealDelegation;
   creatorAddress?: string; // stored when payment link is sent so deposit instructions survive restarts
 }

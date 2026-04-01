@@ -5,6 +5,7 @@ export type WebhookEvent =
   | "deal.delivery_submitted"
   | "deal.evaluation_complete"
   | "deal.payment_released"
+  | "deal.completed"
   | "deal.disputed"
   | "deal.dispute_resolved";
 

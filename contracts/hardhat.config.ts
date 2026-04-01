@@ -27,6 +27,11 @@ const config: HardhatUserConfig = {
       chainId: 196,
       accounts: process.env.AGENT_PRIVATE_KEY ? [process.env.AGENT_PRIVATE_KEY] : [],
     },
+    flowTestnet: {
+      url: process.env.FLOW_TESTNET_RPC ?? "https://testnet.evm.nodes.onflow.org",
+      chainId: 545,
+      accounts: process.env.FLOW_PRIVATE_KEY ? [process.env.FLOW_PRIVATE_KEY] : (process.env.AGENT_PRIVATE_KEY ? [process.env.AGENT_PRIVATE_KEY] : []),
+    },
   },
   etherscan: {
     apiKey: process.env.BASESCAN_API_KEY ?? "",
