@@ -6,7 +6,7 @@
     "payment-ui"
   ],
   "overrides": {
-    "axios": "1.14.0"
+    "axios": "1.16.0"
   },
   "scripts": {
     "build": "npm run build --workspace=payment-ui && npm run build --workspace=bot",
